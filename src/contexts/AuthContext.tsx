@@ -27,11 +27,16 @@ export const useAuth = (): AuthContextType => {
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : {
-      id: "user1",
-      name: "User",
-      email: "user@example.com",
-      isAdmin: false
+    if (savedUser) {
+      return JSON.parse(savedUser);
+    }
+    
+    // Default admin user for testing
+    return {
+      id: "admin1",
+      name: "Admin",
+      email: "admin@example.com",
+      isAdmin: true
     };
   });
 

@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Dashboard from "./pages/Dashboard";
 import LoginPage from "./pages/LoginPage";
@@ -27,14 +27,16 @@ const queryClient = new QueryClient();
 // Protected route component to prevent non-admin users from accessing admin routes
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
+  const location = useLocation();
   
   if (!user || !user.isAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/" replace state={{ from: location }} />;
   }
   
   return <>{children}</>;
 };
 
+// Component to check if user is admin and redirect if needed
 const AppRoutes = () => {
   const { user } = useAuth();
   
@@ -49,12 +51,48 @@ const AppRoutes = () => {
       <Route path="/settings" element={<Layout><Settings /></Layout>} />
       
       {/* Admin Panel Routes - Protected by AdminRoute */}
-      <Route path="/admin" element={<AdminRoute><AdminLayout><AdminDashboard /></AdminLayout></AdminRoute>} />
-      <Route path="/admin/users" element={<AdminRoute><AdminLayout><AdminUsers /></AdminLayout></AdminRoute>} />
-      <Route path="/admin/pages" element={<AdminRoute><AdminLayout><AdminPages /></AdminLayout></AdminRoute>} />
-      <Route path="/admin/data" element={<AdminRoute><AdminLayout><AdminData /></AdminLayout></AdminRoute>} />
-      <Route path="/admin/subscriptions" element={<AdminRoute><AdminLayout><AdminSubscriptions /></AdminLayout></AdminRoute>} />
-      <Route path="/admin/settings" element={<AdminRoute><AdminLayout><AdminSettings /></AdminLayout></AdminRoute>} />
+      <Route path="/admin" element={
+        <AdminRoute>
+          <AdminLayout>
+            <AdminDashboard />
+          </AdminLayout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/users" element={
+        <AdminRoute>
+          <AdminLayout>
+            <AdminUsers />
+          </AdminLayout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/pages" element={
+        <AdminRoute>
+          <AdminLayout>
+            <AdminPages />
+          </AdminLayout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/data" element={
+        <AdminRoute>
+          <AdminLayout>
+            <AdminData />
+          </AdminLayout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/subscriptions" element={
+        <AdminRoute>
+          <AdminLayout>
+            <AdminSubscriptions />
+          </AdminLayout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/settings" element={
+        <AdminRoute>
+          <AdminLayout>
+            <AdminSettings />
+          </AdminLayout>
+        </AdminRoute>
+      } />
       
       {/* Login Page Route */}
       <Route path="/page/:sessionId" element={<LoginPage />} />
