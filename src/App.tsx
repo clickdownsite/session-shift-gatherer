@@ -20,23 +20,29 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import AdminLayout from "./components/AdminLayout";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import CreateSession from "./pages/CreateSession";
 
 const queryClient = new QueryClient();
 
 // Protected route component to prevent non-admin users from accessing admin routes
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
+  
   if (!user || !user.isAdmin) {
     return <Navigate to="/" replace />;
   }
+  
   return <>{children}</>;
 };
 
 const AppRoutes = () => {
+  const { user } = useAuth();
+  
   return (
     <Routes>
       {/* User Panel Routes */}
       <Route path="/" element={<Layout><Dashboard /></Layout>} />
+      <Route path="/create-session" element={<Layout><CreateSession /></Layout>} />
       <Route path="/sessions" element={<Layout><Dashboard /></Layout>} />
       <Route path="/history" element={<Layout><History /></Layout>} />
       <Route path="/profile" element={<Layout><Profile /></Layout>} />

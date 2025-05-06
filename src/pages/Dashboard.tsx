@@ -1,17 +1,18 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from '@/components/ui/label';
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from '@/hooks/use-toast';
-import { LinkIcon, Copy, RotateCw, Download } from 'lucide-react';
+import { LinkIcon, Copy, Download, X, Plus } from 'lucide-react';
 import { useSessionContext } from '@/contexts/SessionContext';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { sessions, addSession, switchPageType, exportSessionData } = useSessionContext();
-  const [pageType, setPageType] = useState('login1');
+  const { sessions, switchPageType, exportSessionData, closeSession } = useSessionContext();
+  const navigate = useNavigate();
   
   const pageTypes = [
     { id: 'login1', name: 'Email & Password Login' },
@@ -19,14 +20,6 @@ const Dashboard = () => {
     { id: 'login3', name: 'OTP Verification' },
     { id: 'login4', name: 'Social Login' }
   ];
-  
-  const handleCreateSession = () => {
-    addSession(pageType);
-    toast({
-      title: "New Session Created",
-      description: `Session with ${getPageTypeName(pageType)} has been created.`
-    });
-  };
   
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
@@ -48,6 +41,14 @@ const Dashboard = () => {
     const pageType = pageTypes.find(p => p.id === type);
     return pageType ? pageType.name : type;
   };
+  
+  const handleCloseSession = (sessionId: string) => {
+    closeSession(sessionId);
+    toast({
+      title: "Session Closed",
+      description: `Session ${sessionId} has been closed.`
+    });
+  };
 
   return (
     <div className="container mx-auto animate-fade-in">
@@ -56,24 +57,9 @@ const Dashboard = () => {
           <h1 className="text-3xl font-bold">Session Generator</h1>
           <p className="text-muted-foreground">Create and manage your session links</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="sm:w-64">
-            <Label htmlFor="page-type" className="sr-only">Page Type</Label>
-            <Select value={pageType} onValueChange={setPageType}>
-              <SelectTrigger id="page-type">
-                <SelectValue placeholder="Select Page Type" />
-              </SelectTrigger>
-              <SelectContent>
-                {pageTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
-                    {type.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button onClick={handleCreateSession}>
-            Create Session
+        <div className="flex">
+          <Button onClick={() => navigate('/create-session')}>
+            <Plus className="h-4 w-4 mr-2" /> Create Session
           </Button>
         </div>
       </div>
@@ -87,82 +73,93 @@ const Dashboard = () => {
             </div>
             <h3 className="text-lg font-medium mb-2">No active sessions</h3>
             <p className="text-muted-foreground mb-4">Create your first session to get started</p>
-            <Button onClick={handleCreateSession}>Create Session</Button>
+            <Button onClick={() => navigate('/create-session')}>Create Session</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sessions.map((session) => (
-              <Card key={session.id} className="session-card">
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg">Session ID: {session.id}</CardTitle>
-                    <Badge variant={getPageTypeBadgeVariant(session.pageType)} className={session.pageType === 'login1' ? 'bg-brand-purple' : ''}>
-                      {getPageTypeName(session.pageType)}
-                    </Badge>
-                  </div>
-                  <div className="mt-2 text-sm text-muted-foreground truncate">
-                    <a 
-                      href={`${window.location.origin}/page/${session.id}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="hover:underline"
+          <ScrollArea className="w-full whitespace-nowrap rounded-md border">
+            <div className="flex p-4 gap-4">
+              {sessions.map((session) => (
+                <Card key={session.id} className="session-card min-w-[300px] max-w-[350px]">
+                  <CardHeader className="pb-3 relative">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute top-2 right-2" 
+                      onClick={() => handleCloseSession(session.id)}
                     >
-                      {`${window.location.origin}/page/${session.id}`}
-                    </a>
-                  </div>
-                </CardHeader>
-                <CardContent className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium">Data captured:</div>
-                      <div className="mt-1">
-                        <Badge variant="outline">
-                          {session.data.length} {session.data.length === 1 ? 'entry' : 'entries'}
-                        </Badge>
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <div className="pr-6">
+                      <CardTitle className="text-lg">Session ID: {session.id}</CardTitle>
+                      <Badge variant={getPageTypeBadgeVariant(session.pageType)} className={session.pageType === 'login1' ? 'bg-brand-purple' : ''}>
+                        {getPageTypeName(session.pageType)}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 text-sm text-muted-foreground truncate">
+                      <a 
+                        href={`${window.location.origin}/page/${session.id}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="hover:underline"
+                      >
+                        {`${window.location.origin}/page/${session.id}`}
+                      </a>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium">Data captured:</div>
+                        <div className="mt-1">
+                          <Badge variant="outline">
+                            {session.data.length} {session.data.length === 1 ? 'entry' : 'entries'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">Page Type:</div>
+                        <div className="mt-1">
+                          <Select 
+                            value={session.pageType} 
+                            onValueChange={(value) => handleSwitchPageType(session.id, value)}
+                          >
+                            <SelectTrigger className="w-[130px] h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {pageTypes.map((type) => (
+                                <SelectItem key={type.id} value={type.id}>
+                                  {type.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <div className="text-sm font-medium">Page Type:</div>
-                      <div className="mt-1">
-                        <Select 
-                          value={session.pageType} 
-                          onValueChange={(value) => handleSwitchPageType(session.id, value)}
-                        >
-                          <SelectTrigger className="w-[130px] h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {pageTypes.map((type) => (
-                              <SelectItem key={type.id} value={type.id}>
-                                {type.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="pt-2 flex justify-between">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCopyLink(`${window.location.origin}/page/${session.id}`)}
-                  >
-                    <Copy className="h-4 w-4 mr-2" /> Copy Link
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => exportSessionData(session.id)}
-                    disabled={session.data.length === 0}
-                  >
-                    <Download className="h-4 w-4 mr-2" /> Export Data
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                  <CardFooter className="pt-2 flex justify-between">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopyLink(`${window.location.origin}/page/${session.id}`)}
+                    >
+                      <Copy className="h-4 w-4 mr-2" /> Copy Link
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportSessionData(session.id)}
+                      disabled={session.data.length === 0}
+                    >
+                      <Download className="h-4 w-4 mr-2" /> Export
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         )}
       </div>
       
@@ -175,13 +172,8 @@ const Dashboard = () => {
               and the live session will update instantly. Export data when you're ready.
             </p>
           </div>
-          <Button variant="outline" className="shrink-0" onClick={() => {
-            toast({
-              title: "Sessions Refreshed",
-              description: "All sessions have been refreshed.",
-            });
-          }}>
-            <RotateCw className="h-4 w-4 mr-2" /> Refresh Sessions
+          <Button variant="outline" className="shrink-0" onClick={() => navigate('/create-session')}>
+            <Plus className="h-4 w-4 mr-2" /> Create New Session
           </Button>
         </div>
       </div>

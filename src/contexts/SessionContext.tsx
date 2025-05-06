@@ -16,6 +16,7 @@ interface Session {
   pageType: string;
   createdAt: string;
   data: SessionData[];
+  active: boolean; // Added active field to track session status
 }
 
 interface SessionContextType {
@@ -25,6 +26,7 @@ interface SessionContextType {
   switchPageType: (sessionId: string, newPageType: string) => void;
   exportSessionData: (sessionId: string) => void;
   getSessionById: (sessionId: string) => Session | undefined;
+  closeSession: (sessionId: string) => void; // Added closeSession function
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -52,13 +54,15 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
             location: 'New York, USA',
             formData: { email: 'test@example.com', password: '********' }
           }
-        ]
+        ],
+        active: true
       },
       {
         id: 'demo456',
         pageType: 'login2',
         createdAt: new Date().toISOString(),
-        data: []
+        data: [],
+        active: true
       }
     ];
   });
@@ -76,7 +80,8 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       id: generateId(),
       pageType,
       createdAt: new Date().toISOString(),
-      data: []
+      data: [],
+      active: true
     };
     setSessions([...sessions, newSession]);
   };
@@ -105,6 +110,18 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   };
 
+  const closeSession = (sessionId: string) => {
+    setSessions(sessions.map(session => {
+      if (session.id === sessionId) {
+        return {
+          ...session,
+          active: false
+        };
+      }
+      return session;
+    }));
+  };
+
   const exportSessionData = (sessionId: string) => {
     const session = sessions.find(s => s.id === sessionId);
     if (!session) return;
@@ -127,12 +144,13 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   return (
     <SessionContext.Provider
       value={{
-        sessions,
+        sessions: sessions.filter(session => session.active), // Only return active sessions
         addSession,
         addSessionData,
         switchPageType,
         exportSessionData,
-        getSessionById
+        getSessionById,
+        closeSession
       }}
     >
       {children}
