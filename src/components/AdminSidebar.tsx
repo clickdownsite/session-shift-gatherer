@@ -1,14 +1,21 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Settings, Users, LayoutDashboard } from 'lucide-react';
+import { Settings, Users, LayoutDashboard, FileText, Database, CreditCard, Moon, Sun } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AdminSidebar = () => {
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
   
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Pages', href: '/admin/pages', icon: FileText },
+    { name: 'Data', href: '/admin/data', icon: Database },
+    { name: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
     { name: 'Settings', href: '/admin/settings', icon: Settings }
   ];
   
@@ -45,6 +52,25 @@ const AdminSidebar = () => {
         </Link>
       </div>
       
+      <div className="mt-2 px-4 py-3">
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center px-4 py-2 text-sm font-medium rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          {theme === 'dark' ? (
+            <>
+              <Sun className="h-4 w-4 mr-2" />
+              <span>Light Mode</span>
+            </>
+          ) : (
+            <>
+              <Moon className="h-4 w-4 mr-2" />
+              <span>Dark Mode</span>
+            </>
+          )}
+        </button>
+      </div>
+      
       <div className="mt-2 px-4 py-5">
         <div className="flex items-center">
           <div className="flex-shrink-0">
@@ -53,8 +79,8 @@ const AdminSidebar = () => {
             </div>
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium">Admin</p>
-            <p className="text-xs text-opacity-90">admin@example.com</p>
+            <p className="text-sm font-medium">{user?.name || "Admin"}</p>
+            <p className="text-xs text-opacity-90">{user?.email || "admin@example.com"}</p>
           </div>
         </div>
       </div>
