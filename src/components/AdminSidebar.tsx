@@ -1,22 +1,21 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Calendar, Settings, User, LinkIcon } from 'lucide-react';
+import { Settings, Users, LayoutDashboard } from 'lucide-react';
 
-const Sidebar = () => {
+const AdminSidebar = () => {
   const location = useLocation();
   
   const navigation = [
-    { name: 'Sessions', href: '/', icon: LinkIcon },
-    { name: 'History', href: '/history', icon: Calendar },
-    { name: 'Profile', href: '/profile', icon: User },
-    { name: 'Settings', href: '/settings', icon: Settings }
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Settings', href: '/admin/settings', icon: Settings }
   ];
   
   return (
     <div className="hidden md:flex flex-col bg-sidebar text-sidebar-foreground w-64 p-4 shadow-lg">
       <div className="px-4 py-5 flex items-center">
-        <h1 className="text-xl font-bold">Session Generator</h1>
+        <h1 className="text-xl font-bold">Admin Panel</h1>
       </div>
       
       <div className="mt-10 flex flex-col gap-2">
@@ -39,23 +38,23 @@ const Sidebar = () => {
       
       <div className="mt-auto">
         <Link 
-          to="/admin"
+          to="/"
           className="flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
-          Admin Panel →
+          ← Back to User Panel
         </Link>
       </div>
       
       <div className="mt-2 px-4 py-5">
         <div className="flex items-center">
           <div className="flex-shrink-0">
-            <div className="h-8 w-8 rounded-full bg-purple-300 flex items-center justify-center text-purple-800 font-semibold">
-              U
+            <div className="h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center text-white font-semibold">
+              A
             </div>
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium">User</p>
-            <p className="text-xs text-opacity-90">user@example.com</p>
+            <p className="text-sm font-medium">Admin</p>
+            <p className="text-xs text-opacity-90">admin@example.com</p>
           </div>
         </div>
       </div>
@@ -63,4 +62,4 @@ const Sidebar = () => {
   );
 };
 
-export default Sidebar;
+export default AdminSidebar;
