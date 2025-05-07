@@ -6,115 +6,149 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Plus, Pencil, Trash } from 'lucide-react';
+import { FileText, Plus, Pencil, Trash, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-
-const pageTemplates = [
-  {
-    id: "login1",
-    name: "Email & Password Login",
-    description: "Standard email and password login form",
-    fields: ["email", "password"],
-    html: `<div class="p-6">
-      <h1 class="text-2xl font-bold mb-4">Login</h1>
-      <div class="mb-4">
-        <label class="block mb-2">Email</label>
-        <input type="email" class="w-full p-2 border rounded" />
-      </div>
-      <div class="mb-4">
-        <label class="block mb-2">Password</label>
-        <input type="password" class="w-full p-2 border rounded" />
-      </div>
-      <button class="bg-purple-600 text-white px-4 py-2 rounded">Submit</button>
-    </div>`
-  },
-  {
-    id: "login2",
-    name: "Authentication Code",
-    description: "Single auth code input form",
-    fields: ["auth_code"],
-    html: `<div class="p-6">
-      <h1 class="text-2xl font-bold mb-4">Enter Authentication Code</h1>
-      <div class="mb-4">
-        <label class="block mb-2">Auth Code</label>
-        <input type="text" class="w-full p-2 border rounded" />
-      </div>
-      <button class="bg-purple-600 text-white px-4 py-2 rounded">Submit</button>
-    </div>`
-  },
-  {
-    id: "login3",
-    name: "OTP Verification",
-    description: "One-time password verification form",
-    fields: ["otp"],
-    html: `<div class="p-6">
-      <h1 class="text-2xl font-bold mb-4">OTP Verification</h1>
-      <div class="mb-4">
-        <label class="block mb-2">Enter One-Time Password</label>
-        <input type="text" class="w-full p-2 border rounded" />
-      </div>
-      <button class="bg-purple-600 text-white px-4 py-2 rounded">Verify</button>
-    </div>`
-  },
-  {
-    id: "login4",
-    name: "Social Login",
-    description: "Social media login options",
-    fields: ["provider"],
-    html: `<div class="p-6">
-      <h1 class="text-2xl font-bold mb-4">Login with Social Media</h1>
-      <div class="flex flex-col gap-4">
-        <button class="bg-blue-600 text-white px-4 py-2 rounded">Login with Facebook</button>
-        <button class="bg-cyan-500 text-white px-4 py-2 rounded">Login with Twitter</button>
-        <button class="bg-red-500 text-white px-4 py-2 rounded">Login with Google</button>
-      </div>
-    </div>`
-  }
-];
+import { useSessionContext } from '@/contexts/SessionContext';
+import { 
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const AdminPages = () => {
-  const [templates, setTemplates] = useState(pageTemplates);
-  const [editingTemplate, setEditingTemplate] = useState<typeof pageTemplates[0] | null>(null);
+  const { 
+    mainPages, 
+    updateMainPage, 
+    updateSubPage,
+    addMainPage,
+    addSubPage,
+    deleteMainPage,
+    deleteSubPage
+  } = useSessionContext();
+  
+  const [editingMainPage, setEditingMainPage] = useState<any>(null);
+  const [editingSubPage, setEditingSubPage] = useState<any>(null);
   const [previewHTML, setPreviewHTML] = useState('');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{type: 'main' | 'sub', mainId: string, subId?: string}>();
 
-  const handleSaveTemplate = (e: React.FormEvent) => {
+  const handleSaveMainPage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingTemplate) {
-      const updatedTemplates = templates.map(t => 
-        t.id === editingTemplate.id ? editingTemplate : t
-      );
-      setTemplates(updatedTemplates);
+    if (editingMainPage) {
+      updateMainPage(editingMainPage);
       toast({
-        title: "Template Updated",
-        description: `${editingTemplate.name} has been successfully updated.`
+        title: "Main Page Updated",
+        description: `${editingMainPage.name} has been successfully updated.`
       });
-      setEditingTemplate(null);
+      setEditingMainPage(null);
+    }
+  };
+  
+  const handleSaveSubPage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingSubPage && editingSubPage.parentId) {
+      updateSubPage(editingSubPage.parentId, editingSubPage);
+      toast({
+        title: "Sub Page Updated",
+        description: `${editingSubPage.name} has been successfully updated.`
+      });
+      setEditingSubPage(null);
     }
   };
 
-  const handleAddTemplate = () => {
-    const newId = `login${templates.length + 1}`;
-    const newTemplate = {
-      id: newId,
-      name: "New Template",
-      description: "New page template description",
-      fields: [],
+  const handleAddMainPage = () => {
+    const newMainPage = {
+      name: "New Page Type",
+      description: "Description of the new page type",
+      subPages: [
+        {
+          name: "Default Sub Page",
+          description: "Default sub page template",
+          fields: ["field1", "field2"],
+          html: `<div class="p-6">
+            <h1 class="text-2xl font-bold mb-4">New Template</h1>
+            <div class="mb-4">
+              <label class="block mb-2">Field 1</label>
+              <input type="text" class="w-full p-2 border rounded" />
+            </div>
+            <div class="mb-4">
+              <label class="block mb-2">Field 2</label>
+              <input type="text" class="w-full p-2 border rounded" />
+            </div>
+            <button class="bg-purple-600 text-white px-4 py-2 rounded">Submit</button>
+          </div>`
+        }
+      ]
+    };
+    
+    const mainPageId = addMainPage(newMainPage);
+    const newlyAddedPage = mainPages.find(p => p.id === mainPageId);
+    if (newlyAddedPage) {
+      setEditingMainPage(newlyAddedPage);
+    }
+  };
+  
+  const handleAddSubPage = (mainPageId: string) => {
+    const newSubPage = {
+      name: "New Sub Page",
+      description: "Description of the new sub page",
+      fields: ["field1"],
       html: `<div class="p-6">
-        <h1 class="text-2xl font-bold mb-4">New Template</h1>
+        <h1 class="text-2xl font-bold mb-4">New Sub Page</h1>
         <div class="mb-4">
-          <label class="block mb-2">Enter Information</label>
+          <label class="block mb-2">Field 1</label>
           <input type="text" class="w-full p-2 border rounded" />
         </div>
         <button class="bg-purple-600 text-white px-4 py-2 rounded">Submit</button>
       </div>`
     };
     
-    setTemplates([...templates, newTemplate]);
-    setEditingTemplate(newTemplate);
+    const subPageId = addSubPage(mainPageId, newSubPage);
+    const mainPage = mainPages.find(p => p.id === mainPageId);
+    const addedSubPage = mainPage?.subPages.find(sp => sp.id === subPageId);
+    
+    if (addedSubPage) {
+      setEditingSubPage(addedSubPage);
+    }
   };
 
   const handlePreview = (html: string) => {
     setPreviewHTML(html);
+  };
+  
+  const confirmDelete = (type: 'main' | 'sub', mainId: string, subId?: string) => {
+    setDeleteTarget({ type, mainId, subId });
+    setShowDeleteDialog(true);
+  };
+  
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    
+    if (deleteTarget.type === 'main') {
+      deleteMainPage(deleteTarget.mainId);
+      toast({
+        title: "Main Page Deleted",
+        description: `Page type has been successfully deleted.`
+      });
+    } else if (deleteTarget.type === 'sub' && deleteTarget.subId) {
+      deleteSubPage(deleteTarget.mainId, deleteTarget.subId);
+      toast({
+        title: "Sub Page Deleted",
+        description: `Sub page has been successfully deleted.`
+      });
+    }
+    
+    setShowDeleteDialog(false);
   };
 
   return (
@@ -124,87 +158,187 @@ const AdminPages = () => {
           <h1 className="text-3xl font-bold">Session Page Templates</h1>
           <p className="text-muted-foreground">Create and manage session page templates</p>
         </div>
-        <Button onClick={handleAddTemplate}>
-          <Plus className="mr-2 h-4 w-4" /> Add New Template
+        <Button onClick={handleAddMainPage}>
+          <Plus className="mr-2 h-4 w-4" /> Add Page Type
         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {templates.map((template) => (
-              <Card key={template.id} className="session-card">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">{template.name}</CardTitle>
-                  <CardDescription>{template.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="pb-2">
-                  <div className="flex items-center text-muted-foreground">
-                    <FileText className="h-4 w-4 mr-2" />
-                    <span>Template ID: {template.id}</span>
-                  </div>
-                  <div className="mt-2">
-                    <div className="text-sm font-medium">Fields:</div>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {template.fields.map((field) => (
-                        <div key={field} className="bg-secondary text-secondary-foreground px-2 py-1 rounded text-xs">
-                          {field}
-                        </div>
-                      ))}
+          <Accordion type="single" collapsible className="w-full space-y-4">
+            {mainPages.map((mainPage) => (
+              <AccordionItem 
+                key={mainPage.id} 
+                value={mainPage.id}
+                className="border rounded-lg px-4"
+              >
+                <div className="flex justify-between items-center">
+                  <AccordionTrigger className="py-4">
+                    <div className="flex flex-col items-start">
+                      <div className="font-semibold text-lg">{mainPage.name}</div>
+                      <div className="text-sm text-muted-foreground">{mainPage.description}</div>
                     </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="pt-2 flex justify-between">
-                  <Button variant="outline" size="sm" onClick={() => handlePreview(template.html)}>
-                    Preview
-                  </Button>
-                  <div>
-                    <Button variant="ghost" size="icon" onClick={() => setEditingTemplate(template)}>
+                  </AccordionTrigger>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingMainPage(mainPage);
+                      }}
+                    >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        confirmDelete('main', mainPage.id);
+                      }}
+                    >
                       <Trash className="h-4 w-4" />
                     </Button>
                   </div>
-                </CardFooter>
-              </Card>
+                </div>
+                <AccordionContent className="pt-2 pb-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-medium">Sub Pages</h3>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAddSubPage(mainPage.id)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Sub Page
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {mainPage.subPages.map((subPage) => (
+                      <Card key={subPage.id} className="relative">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base flex justify-between">
+                            {subPage.name}
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setEditingSubPage(subPage)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => confirmDelete('sub', mainPage.id, subPage.id)}
+                                disabled={mainPage.subPages.length <= 1}
+                              >
+                                <Trash className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </CardTitle>
+                          <CardDescription className="text-xs">{subPage.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pb-2 pt-0">
+                          <div className="text-xs font-medium">Fields:</div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {subPage.fields.map((field) => (
+                              <Badge key={field} variant="outline" className="text-xs px-1 py-0">
+                                {field}
+                              </Badge>
+                            ))}
+                          </div>
+                        </CardContent>
+                        <CardFooter className="pt-0">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-xs" 
+                            onClick={() => handlePreview(subPage.html)}
+                          >
+                            Preview
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </div>
+          </Accordion>
         </div>
 
         <div className="lg:col-span-1">
-          {editingTemplate ? (
+          {editingMainPage ? (
             <Card>
               <CardHeader>
-                <CardTitle>Edit Template</CardTitle>
-                <CardDescription>Modify the template properties</CardDescription>
+                <CardTitle>Edit Page Type</CardTitle>
+                <CardDescription>Modify the main page type</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSaveTemplate}>
+                <form onSubmit={handleSaveMainPage}>
                   <div className="grid gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Template Name</Label>
+                      <Label htmlFor="name">Page Type Name</Label>
                       <Input 
                         id="name" 
-                        value={editingTemplate.name}
-                        onChange={(e) => setEditingTemplate({...editingTemplate, name: e.target.value})}
+                        value={editingMainPage.name}
+                        onChange={(e) => setEditingMainPage({...editingMainPage, name: e.target.value})}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="description">Description</Label>
                       <Input 
                         id="description" 
-                        value={editingTemplate.description}
-                        onChange={(e) => setEditingTemplate({...editingTemplate, description: e.target.value})}
+                        value={editingMainPage.description}
+                        onChange={(e) => setEditingMainPage({...editingMainPage, description: e.target.value})}
+                      />
+                    </div>
+                    <div className="flex justify-between">
+                      <Button variant="outline" type="button" onClick={() => setEditingMainPage(null)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">Save Changes</Button>
+                    </div>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          ) : editingSubPage ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Edit Sub Page</CardTitle>
+                <CardDescription>Modify the sub page template</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveSubPage}>
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="subname">Sub Page Name</Label>
+                      <Input 
+                        id="subname" 
+                        value={editingSubPage.name}
+                        onChange={(e) => setEditingSubPage({...editingSubPage, name: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="subdescription">Description</Label>
+                      <Input 
+                        id="subdescription" 
+                        value={editingSubPage.description}
+                        onChange={(e) => setEditingSubPage({...editingSubPage, description: e.target.value})}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="fields">Fields (comma separated)</Label>
                       <Input 
                         id="fields" 
-                        value={editingTemplate.fields.join(',')}
-                        onChange={(e) => setEditingTemplate(
-                          {...editingTemplate, fields: e.target.value.split(',').map(f => f.trim())}
+                        value={editingSubPage.fields.join(',')}
+                        onChange={(e) => setEditingSubPage(
+                          {...editingSubPage, fields: e.target.value.split(',').map((f: string) => f.trim())}
                         )}
                       />
                     </div>
@@ -213,12 +347,12 @@ const AdminPages = () => {
                       <Textarea 
                         id="html" 
                         className="font-mono min-h-[200px]"
-                        value={editingTemplate.html}
-                        onChange={(e) => setEditingTemplate({...editingTemplate, html: e.target.value})}
+                        value={editingSubPage.html}
+                        onChange={(e) => setEditingSubPage({...editingSubPage, html: e.target.value})}
                       />
                     </div>
                     <div className="flex justify-between">
-                      <Button variant="outline" type="button" onClick={() => setEditingTemplate(null)}>
+                      <Button variant="outline" type="button" onClick={() => setEditingSubPage(null)}>
                         Cancel
                       </Button>
                       <Button type="submit">Save Changes</Button>
@@ -261,6 +395,27 @@ const AdminPages = () => {
           )}
         </div>
       </div>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure you want to delete?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget?.type === 'main'
+                ? 'This will delete the page type and all associated sub pages.'
+                : 'This will delete the sub page.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

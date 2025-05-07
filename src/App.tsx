@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import AdminLayout from "./components/AdminLayout";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import CreateSession from "./pages/CreateSession";
+import { SessionProvider } from "./contexts/SessionContext";
 
 const queryClient = new QueryClient();
 
@@ -107,13 +108,15 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
+        <SessionProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </TooltipProvider>
+        </SessionProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
