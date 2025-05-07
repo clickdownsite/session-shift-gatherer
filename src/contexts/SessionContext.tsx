@@ -29,6 +29,7 @@ interface Session {
   id: string;
   mainPageId: string;
   currentSubPageId: string;
+  pageType?: string; // Added pageType property
   createdAt: string;
   data: SessionData[];
   active: boolean;
@@ -209,6 +210,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       {
         id: 'demo123',
         mainPageId: defaultPage.id,
+        pageType: defaultPage.name, // Set pageType from main page name
         currentSubPageId: defaultSubPage.id,
         createdAt: new Date().toISOString(),
         data: [
@@ -247,9 +249,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addSession = (mainPageId: string, subPageId: string) => {
+    const mainPage = getMainPageById(mainPageId);
     const newSession: Session = {
       id: generateId(),
       mainPageId,
+      pageType: mainPage?.name, // Set pageType from main page name
       currentSubPageId: subPageId,
       createdAt: new Date().toISOString(),
       data: [],

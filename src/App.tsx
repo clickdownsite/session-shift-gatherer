@@ -30,7 +30,11 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   const location = useLocation();
   
-  if (!user || !user.isAdmin) {
+  if (!user) {
+    return <Navigate to="/" replace state={{ from: location }} />;
+  }
+  
+  if (!user.isAdmin) {
     return <Navigate to="/" replace state={{ from: location }} />;
   }
   
@@ -39,8 +43,6 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Component to check if user is admin and redirect if needed
 const AppRoutes = () => {
-  const { user } = useAuth();
-  
   return (
     <Routes>
       {/* User Panel Routes */}

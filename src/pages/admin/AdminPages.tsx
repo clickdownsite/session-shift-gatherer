@@ -92,10 +92,10 @@ const AdminPages = () => {
     };
     
     const mainPageId = addMainPage(newMainPage);
-    const newlyAddedPage = mainPages.find(p => p.id === mainPageId);
-    if (newlyAddedPage) {
-      setEditingMainPage(newlyAddedPage);
-    }
+    setEditingMainPage({
+      id: mainPageId,
+      ...newMainPage
+    });
   };
   
   const handleAddSubPage = (mainPageId: string) => {

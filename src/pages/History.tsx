@@ -23,11 +23,11 @@ const History = () => {
   };
 
   return (
-    <div className="container mx-auto animate-fade-in">
+    <div className="container mx-auto animate-fade-in py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Session History</h1>
-          <p className="text-gray-500">View and analyze your past sessions</p>
+          <p className="text-muted-foreground">View and analyze your past sessions</p>
         </div>
       </div>
       
@@ -47,8 +47,8 @@ const History = () => {
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-lg font-medium">Session ID: {session.id}</CardTitle>
-                    <Badge variant={session.pageType === 'login1' ? 'default' : 'outline'} className={session.pageType === 'login1' ? 'bg-brand-purple' : ''}>
-                      {session.pageType === 'login1' ? 'Login1' : 'Login2'}
+                    <Badge variant={session.mainPageId === 'login' ? 'default' : 'outline'} className={session.mainPageId === 'login' ? 'bg-brand-purple' : ''}>
+                      {session.pageType || "Unknown"}
                     </Badge>
                   </div>
                   <div className="flex items-center text-xs text-muted-foreground mt-1">

