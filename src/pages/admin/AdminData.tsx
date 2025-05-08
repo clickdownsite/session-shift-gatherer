@@ -13,7 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Database, Download, Filter, Search } from 'lucide-react';
+import { 
+  Copy, 
+  Database, 
+  Download, 
+  Filter, 
+  Search 
+} from 'lucide-react';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { toast } from '@/hooks/use-toast';
 
@@ -100,6 +106,14 @@ const AdminData = () => {
     return new Date(timestamp).toLocaleString();
   };
 
+  const handleCopyValue = (value: any) => {
+    navigator.clipboard.writeText(typeof value === 'object' ? JSON.stringify(value) : value.toString());
+    toast({
+      title: "Copied to clipboard",
+      description: "Value has been copied to clipboard"
+    });
+  };
+
   return (
     <div className="container mx-auto animate-fade-in">
       <div className="flex justify-between items-center mb-8">
@@ -142,8 +156,8 @@ const AdminData = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All Page Types</SelectItem>
-                  {getUniquePageTypes().map((pageType) => (
-                    <SelectItem key={pageType} value={pageType || ""}>{pageType || "Unknown"}</SelectItem>
+                  {getUniquePageTypes().map((pageType, idx) => (
+                    <SelectItem key={idx} value={pageType || ""}>{pageType || "Unknown"}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -157,8 +171,8 @@ const AdminData = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All Sessions</SelectItem>
-                  {getUniqueUsers().map(sessionId => (
-                    <SelectItem key={sessionId} value={sessionId}>{sessionId}</SelectItem>
+                  {getUniqueUsers().map((sessionId, idx) => (
+                    <SelectItem key={idx} value={sessionId}>{sessionId}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -218,6 +232,7 @@ const AdminData = () => {
                       <TableHead>IP Address</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Submitted Data</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -227,9 +242,36 @@ const AdminData = () => {
                         <TableCell>{entry.ip}</TableCell>
                         <TableCell>{entry.location}</TableCell>
                         <TableCell>
-                          <pre className="text-xs p-2 bg-secondary rounded-md overflow-x-auto">
-                            {JSON.stringify(entry.formData, null, 2)}
-                          </pre>
+                          <div className="max-h-40 overflow-y-auto">
+                            {Object.entries(entry.formData).map(([key, value], idx) => (
+                              <div key={idx} className="flex justify-between items-center py-1 border-b last:border-0">
+                                <span className="font-medium mr-2">{key}:</span>
+                                <div className="flex items-center">
+                                  <span className="text-sm mr-2 max-w-[200px] truncate">
+                                    {key.includes('password') ? '••••••••' : value}
+                                  </span>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6" 
+                                    onClick={() => handleCopyValue(value)}
+                                  >
+                                    <Copy className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-xs"
+                            onClick={() => handleCopyValue(entry.formData)}
+                          >
+                            <Copy className="h-3.5 w-3.5 mr-1" /> Copy All
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

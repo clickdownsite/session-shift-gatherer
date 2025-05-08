@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,10 +19,20 @@ import {
   Eye, 
   LinkIcon, 
   MoreHorizontal, 
+  Plus,
   Search, 
-  User 
+  User,
+  UserPlus,
+  X
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +40,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/hooks/use-toast';
+import { 
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage, 
+} from "@/components/ui/form";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 // Mock data for users
 const mockUsers = [
@@ -86,10 +108,30 @@ const mockUsers = [
   }
 ];
 
+// User form schema
+const userFormSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  cryptoAddress: z.string().min(10, "Please enter a valid crypto address"),
+});
+
+type UserFormValues = z.infer<typeof userFormSchema>;
+
 const AdminUsers = () => {
-  const [users] = useState(mockUsers);
+  const [users, setUsers] = useState(mockUsers);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<typeof mockUsers[0] | null>(null);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+
+  // User form
+  const form = useForm<UserFormValues>({
+    resolver: zodResolver(userFormSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      cryptoAddress: "",
+    },
+  });
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -121,6 +163,33 @@ const AdminUsers = () => {
     }
   };
 
+  const onSubmitNewUser = (data: UserFormValues) => {
+    const newUser = {
+      id: `user${users.length + 1}`,
+      name: data.name,
+      email: data.email,
+      status: 'active',
+      role: 'user',
+      sessions: 0,
+      createdAt: new Date().toISOString(),
+      subscription: 'basic',
+      lastActive: new Date().toISOString(),
+      ipAddresses: [],
+      locations: [],
+      sessions_data: [],
+      cryptoAddress: data.cryptoAddress,
+    };
+
+    setUsers([...users, newUser]);
+    setIsAddingUser(false);
+    form.reset();
+
+    toast({
+      title: "User Added",
+      description: `${data.name} has been added successfully`
+    });
+  };
+
   return (
     <div className="container mx-auto animate-fade-in">
       <div className="flex justify-between items-center mb-8">
@@ -128,6 +197,10 @@ const AdminUsers = () => {
           <h1 className="text-3xl font-bold">User Management</h1>
           <p className="text-muted-foreground">View and manage system users</p>
         </div>
+        <Button onClick={() => setIsAddingUser(true)}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Add User
+        </Button>
       </div>
       
       <div className="mb-6">
@@ -265,6 +338,12 @@ const AdminUsers = () => {
                             <div className="text-muted-foreground">Registered</div>
                             <div>{formatDate(selectedUser.createdAt)}</div>
                           </div>
+                          {selectedUser.cryptoAddress && (
+                            <div className="grid grid-cols-2">
+                              <div className="text-muted-foreground">Crypto Address</div>
+                              <div className="truncate">{selectedUser.cryptoAddress}</div>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div>
@@ -289,21 +368,33 @@ const AdminUsers = () => {
                           <div>
                             <div className="text-muted-foreground mb-2">IP Addresses</div>
                             <div className="space-y-2">
-                              {selectedUser.ipAddresses.map((ip, index) => (
-                                <div key={index} className="bg-secondary rounded-md px-3 py-1.5 text-sm">
-                                  {ip}
+                              {selectedUser.ipAddresses.length > 0 ? (
+                                selectedUser.ipAddresses.map((ip, index) => (
+                                  <div key={index} className="bg-secondary rounded-md px-3 py-1.5 text-sm">
+                                    {ip}
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="bg-secondary rounded-md px-3 py-1.5 text-sm text-muted-foreground">
+                                  No IP addresses recorded
                                 </div>
-                              ))}
+                              )}
                             </div>
                           </div>
                           <div>
                             <div className="text-muted-foreground mb-2">Locations</div>
                             <div className="space-y-2">
-                              {selectedUser.locations.map((location, index) => (
-                                <div key={index} className="bg-secondary rounded-md px-3 py-1.5 text-sm">
-                                  {location}
+                              {selectedUser.locations.length > 0 ? (
+                                selectedUser.locations.map((location, index) => (
+                                  <div key={index} className="bg-secondary rounded-md px-3 py-1.5 text-sm">
+                                    {location}
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="bg-secondary rounded-md px-3 py-1.5 text-sm text-muted-foreground">
+                                  No locations recorded
                                 </div>
-                              ))}
+                              )}
                             </div>
                           </div>
                         </div>
@@ -321,33 +412,42 @@ const AdminUsers = () => {
                         </div>
                       </div>
                       
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Session ID</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Entries</TableHead>
-                            <TableHead>Created At</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedUser.sessions_data.map((session) => (
-                            <TableRow key={session.id}>
-                              <TableCell>{session.id}</TableCell>
-                              <TableCell className="capitalize">{session.type}</TableCell>
-                              <TableCell>{session.entries}</TableCell>
-                              <TableCell>{formatDate(session.createdAt)}</TableCell>
-                              <TableCell className="text-right">
-                                <Button variant="ghost" size="sm">
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View
-                                </Button>
-                              </TableCell>
+                      {selectedUser.sessions_data.length > 0 ? (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Session ID</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Entries</TableHead>
+                              <TableHead>Created At</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedUser.sessions_data.map((session) => (
+                              <TableRow key={session.id}>
+                                <TableCell>{session.id}</TableCell>
+                                <TableCell className="capitalize">{session.type}</TableCell>
+                                <TableCell>{session.entries}</TableCell>
+                                <TableCell>{formatDate(session.createdAt)}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="sm">
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      ) : (
+                        <div className="bg-muted p-6 rounded-md text-center">
+                          <div className="text-muted-foreground">
+                            <LinkIcon className="h-10 w-10 mx-auto mb-2" />
+                            <p>No session data recorded</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   
@@ -377,6 +477,72 @@ const AdminUsers = () => {
           </div>
         )}
       </div>
+
+      {/* Add User Dialog */}
+      <Dialog open={isAddingUser} onOpenChange={setIsAddingUser}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+            <DialogDescription>
+              Enter the details for the new user account.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmitNewUser)} className="space-y-4 pt-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="john.doe@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="cryptoAddress"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Crypto Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0x..." {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Enter the user's cryptocurrency wallet address
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" type="button" onClick={() => setIsAddingUser(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Add User
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
