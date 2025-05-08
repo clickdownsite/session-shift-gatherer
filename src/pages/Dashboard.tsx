@@ -1,15 +1,16 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from '@/hooks/use-toast';
-import { LinkIcon, Copy, Download, X, Plus, Bell } from 'lucide-react';
+import { LinkIcon, Copy, Download, X, Plus, Bell, Eye } from 'lucide-react';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Dashboard = () => {
   const { 
@@ -23,6 +24,15 @@ const Dashboard = () => {
     resetNewDataFlag 
   } = useSessionContext();
   const navigate = useNavigate();
+  const [viewingSessionData, setViewingSessionData] = useState<{ 
+    sessionId: string, 
+    data: Array<{ 
+      timestamp: string; 
+      ip: string; 
+      location: string; 
+      formData: Record<string, string>; 
+    }> 
+  } | null>(null);
   
   const getPageTypeName = (mainPageId: string, subPageId: string) => {
     const mainPage = getMainPageById(mainPageId);
@@ -64,6 +74,26 @@ const Dashboard = () => {
       title: "Session Closed",
       description: `Session ${sessionId} has been closed.`
     });
+  };
+
+  const viewSessionData = (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (session) {
+      setViewingSessionData({
+        sessionId: session.id,
+        data: session.data
+      });
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
   };
 
   // Reset the new data flag to stop the animation when the user has seen it
@@ -196,9 +226,9 @@ const Dashboard = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleCopyLink(`${window.location.origin}/page/${session.id}`)}
+                        onClick={() => viewSessionData(session.id)}
                       >
-                        <Copy className="h-4 w-4 mr-2" /> Copy Link
+                        <Eye className="h-4 w-4 mr-2" /> View Data
                       </Button>
                       <Button
                         variant="outline"
@@ -232,6 +262,49 @@ const Dashboard = () => {
           </Button>
         </div>
       </div>
+
+      {/* Data Viewing Dialog */}
+      <Dialog open={!!viewingSessionData} onOpenChange={() => setViewingSessionData(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Session Data: {viewingSessionData?.sessionId}</DialogTitle>
+          </DialogHeader>
+          {viewingSessionData?.data.length === 0 ? (
+            <div className="text-center py-8">
+              <p>No data has been captured for this session yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {viewingSessionData?.data.map((entry, index) => (
+                <Card key={index} className="border">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-muted-foreground">
+                        Entry #{index + 1} • {formatDate(entry.timestamp)}
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {entry.location}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {Object.entries(entry.formData).map(([key, value]) => (
+                        <div key={key} className="grid grid-cols-12 gap-2">
+                          <div className="col-span-4 font-medium text-sm">{key}:</div>
+                          <div className="col-span-8 text-sm">
+                            {key.includes('password') ? '••••••••' : value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

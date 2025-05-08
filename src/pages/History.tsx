@@ -33,17 +33,17 @@ const History = () => {
       
       <div className="mb-8">
         {historicalSessions.length === 0 ? (
-          <div className="bg-white rounded-lg p-8 text-center border">
+          <div className="bg-card rounded-lg p-8 text-center border">
             <div className="mb-4 text-gray-400">
               <Calendar className="h-12 w-12 mx-auto" />
             </div>
             <h3 className="text-lg font-medium mb-2">No session history</h3>
-            <p className="text-gray-500 mb-4">Your completed sessions with data will appear here</p>
+            <p className="text-muted-foreground mb-4">Your completed sessions with data will appear here</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {historicalSessions.map((session) => (
-              <Card key={session.id} className="border bg-white shadow-sm">
+              <Card key={session.id} className="border shadow-sm">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-lg font-medium">Session ID: {session.id}</CardTitle>
