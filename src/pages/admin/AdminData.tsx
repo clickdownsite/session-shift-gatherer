@@ -24,7 +24,7 @@ import { useSessionContext } from '@/contexts/SessionContext';
 import { toast } from '@/hooks/use-toast';
 
 const AdminData = () => {
-  const { sessions, exportSessionData } = useSessionContext();
+  const { sessions = [], exportSessionData = () => {} } = useSessionContext();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [pageTypeFilter, setPageTypeFilter] = useState('');
@@ -243,7 +243,7 @@ const AdminData = () => {
                         <TableCell>{entry.location}</TableCell>
                         <TableCell>
                           <div className="max-h-40 overflow-y-auto">
-                            {Object.entries(entry.formData).map(([key, value], idx) => (
+                            {Object.entries(entry.formData || {}).map(([key, value], idx) => (
                               <div key={idx} className="flex justify-between items-center py-1 border-b last:border-0">
                                 <span className="font-medium mr-2">{key}:</span>
                                 <div className="flex items-center">

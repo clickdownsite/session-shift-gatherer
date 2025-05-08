@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +14,7 @@ import {
 import { 
   Activity, 
   Calendar, 
+  Copy,
   CreditCard, 
   Eye, 
   LinkIcon, 
@@ -53,8 +53,30 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
+// Enhanced mock data interface
+interface MockUser {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  role: string;
+  sessions: number;
+  createdAt: string;
+  subscription: string;
+  lastActive: string;
+  ipAddresses: string[];
+  locations: string[];
+  sessions_data: {
+    id: string;
+    type: string;
+    entries: number;
+    createdAt: string;
+  }[];
+  cryptoAddress?: string; // Add the optional cryptoAddress field
+}
+
 // Mock data for users
-const mockUsers = [
+const mockUsers: MockUser[] = [
   {
     id: 'user1',
     name: 'John Doe',
@@ -71,7 +93,8 @@ const mockUsers = [
       { id: 'ses_123', type: 'login1', entries: 3, createdAt: '2023-04-28T10:15:00Z' },
       { id: 'ses_456', type: 'login2', entries: 1, createdAt: '2023-05-01T09:45:00Z' },
       { id: 'ses_789', type: 'login3', entries: 5, createdAt: '2023-05-04T16:20:00Z' }
-    ]
+    ],
+    cryptoAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
   },
   {
     id: 'user2',
@@ -118,13 +141,13 @@ const userFormSchema = z.object({
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 const AdminUsers = () => {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState<MockUser[]>(mockUsers);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedUser, setSelectedUser] = useState<typeof mockUsers[0] | null>(null);
+  const [selectedUser, setSelectedUser] = useState<MockUser | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
 
   // User form
-  const form = useForm<UserFormValues>({
+  const form = useForm<z.infer<typeof userFormSchema>>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
       name: "",
@@ -138,7 +161,7 @@ const AdminUsers = () => {
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleViewDetails = (user: typeof mockUsers[0]) => {
+  const handleViewDetails = (user: MockUser) => {
     setSelectedUser(user);
   };
 
@@ -163,8 +186,8 @@ const AdminUsers = () => {
     }
   };
 
-  const onSubmitNewUser = (data: UserFormValues) => {
-    const newUser = {
+  const onSubmitNewUser = (data: z.infer<typeof userFormSchema>) => {
+    const newUser: MockUser = {
       id: `user${users.length + 1}`,
       name: data.name,
       email: data.email,
