@@ -135,6 +135,7 @@ const mockUsers: MockUser[] = [
 const userFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   cryptoAddress: z.string().min(10, "Please enter a valid crypto address"),
 });
 
@@ -152,6 +153,7 @@ const AdminUsers = () => {
     defaultValues: {
       name: "",
       email: "",
+      password: "",
       cryptoAddress: "",
     },
   });
@@ -534,6 +536,22 @@ const AdminUsers = () => {
                     <FormControl>
                       <Input type="email" placeholder="john.doe@example.com" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Password must be at least 6 characters
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
