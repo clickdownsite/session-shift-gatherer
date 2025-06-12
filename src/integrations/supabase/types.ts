@@ -9,7 +9,166 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      main_pages: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      session_data: {
+        Row: {
+          created_at: string | null
+          form_data: Json | null
+          id: string
+          ip_address: string | null
+          location: string | null
+          session_id: string | null
+          timestamp: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          form_data?: Json | null
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          session_id?: string | null
+          timestamp?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          form_data?: Json | null
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          session_id?: string | null
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_data_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          current_sub_page_id: string
+          has_new_data: boolean | null
+          id: string
+          main_page_id: string
+          page_type: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          current_sub_page_id: string
+          has_new_data?: boolean | null
+          id: string
+          main_page_id: string
+          page_type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          current_sub_page_id?: string
+          has_new_data?: boolean | null
+          id?: string
+          main_page_id?: string
+          page_type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sub_pages: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          fields: string[] | null
+          html: string | null
+          id: string
+          main_page_id: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          fields?: string[] | null
+          html?: string | null
+          id: string
+          main_page_id?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          fields?: string[] | null
+          html?: string | null
+          id?: string
+          main_page_id?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_pages_main_page_id_fkey"
+            columns: ["main_page_id"]
+            isOneToOne: false
+            referencedRelation: "main_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

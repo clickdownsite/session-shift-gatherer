@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,13 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from '@/components/ui/sonner';
-import { LinkIcon, Copy, Download, X, Plus, Bell, Eye } from 'lucide-react';
+import { LinkIcon, Copy, Download, X, Plus, Bell, Eye, LogOut } from 'lucide-react';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from '@/hooks/useAuth';
+import { useSessionData } from '@/hooks/useSupabaseSession';
 
 const Dashboard = () => {
+  const { user, signOut } = useAuth();
   const { 
     sessions, 
     mainPages,
@@ -28,11 +30,13 @@ const Dashboard = () => {
     sessionId: string, 
     data: Array<{ 
       timestamp: string; 
-      ip: string; 
+      ip_address: string; 
       location: string; 
-      formData: Record<string, string>; 
+      form_data: Record<string, string>; 
     }> 
   } | null>(null);
+
+  const { sessionData } = useSessionData(viewingSessionData?.sessionId);
   
   const getPageTypeName = (mainPageId: string, subPageId: string) => {
     const mainPage = getMainPageById(mainPageId);
@@ -73,16 +77,17 @@ const Dashboard = () => {
     });
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   const viewSessionData = (sessionId: string) => {
-    const session = sessions.find(s => s.id === sessionId);
-    if (session) {
-      setViewingSessionData({
-        sessionId: session.id,
-        data: session.data
-      });
-      // Reset the new data flag when viewing data
-      resetNewDataFlag(session.id);
-    }
+    setViewingSessionData({
+      sessionId: sessionId,
+      data: []
+    });
+    resetNewDataFlag(sessionId);
   };
   
   const handleCopyFieldValue = (value: string) => {
@@ -126,11 +131,14 @@ const Dashboard = () => {
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold">Session Generator</h1>
-          <p className="text-muted-foreground">Create and manage your session links</p>
+          <p className="text-muted-foreground">Welcome back, {user?.email}</p>
         </div>
-        <div className="flex">
+        <div className="flex gap-2">
           <Button onClick={() => navigate('/create-session')}>
             <Plus className="h-4 w-4 mr-2" /> Create Session
+          </Button>
+          <Button variant="outline" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4 mr-2" /> Sign Out
           </Button>
         </div>
       </div>
@@ -291,18 +299,18 @@ const Dashboard = () => {
           <DialogHeader>
             <DialogTitle>Session Data: {viewingSessionData?.sessionId}</DialogTitle>
           </DialogHeader>
-          {viewingSessionData?.data.length === 0 ? (
+          {sessionData.length === 0 ? (
             <div className="text-center py-8">
               <p>No data has been captured for this session yet.</p>
             </div>
           ) : (
             <div className="space-y-6">
-              {viewingSessionData?.data.map((entry, index) => (
+              {sessionData.map((entry, index) => (
                 <Card key={index} className="border">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-center">
                       <div className="text-sm text-muted-foreground">
-                        Entry #{index + 1} • {formatDate(entry.timestamp)}
+                        Entry #{index + 1} • {new Date(entry.timestamp).toLocaleString()}
                       </div>
                       <Badge variant="outline" className="text-xs">
                         {entry.location}
@@ -311,18 +319,21 @@ const Dashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {Object.entries(entry.formData).map(([key, value]) => (
+                      {Object.entries(entry.form_data || {}).map(([key, value]) => (
                         <div key={key} className="grid grid-cols-12 gap-2 items-center">
                           <div className="col-span-4 font-medium text-sm">{key}:</div>
                           <div className="col-span-7 text-sm truncate">
-                            {key.includes('password') ? '••••••••' : value}
+                            {key.includes('password') ? '••••••••' : String(value)}
                           </div>
                           <div className="col-span-1 flex justify-end">
                             <Button 
                               variant="ghost" 
                               size="icon" 
                               className="h-6 w-6" 
-                              onClick={() => handleCopyFieldValue(value)}
+                              onClick={() => {
+                                navigator.clipboard.writeText(String(value));
+                                toast.success("Value copied to clipboard");
+                              }}
                             >
                               <Copy className="h-3.5 w-3.5" />
                             </Button>

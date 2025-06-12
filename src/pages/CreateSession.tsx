@@ -5,8 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { useSessionContext } from '@/contexts/SessionContext';
 
@@ -15,8 +13,6 @@ const CreateSession = () => {
   const navigate = useNavigate();
   const [mainPageId, setMainPageId] = useState(mainPages[0]?.id || '');
   const [subPageId, setSubPageId] = useState('');
-  const [sessionName, setSessionName] = useState('');
-  const [sessionDescription, setSessionDescription] = useState('');
   
   // Set initial subpage when main page changes
   React.useEffect(() => {
@@ -42,10 +38,6 @@ const CreateSession = () => {
     }
     
     addSession(mainPageId, subPageId);
-    toast({
-      title: "New Session Created",
-      description: `Session with ${selectedMainPage?.name} - ${selectedSubPage?.name} has been created.`
-    });
     navigate('/');
   };
 
@@ -59,27 +51,6 @@ const CreateSession = () => {
           <CardDescription>Configure your new session</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="session-name">Session Name (Optional)</Label>
-            <Input 
-              id="session-name" 
-              placeholder="My Session" 
-              value={sessionName}
-              onChange={(e) => setSessionName(e.target.value)}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="session-description">Description (Optional)</Label>
-            <Textarea 
-              id="session-description" 
-              placeholder="Add some details about this session..."
-              value={sessionDescription}
-              onChange={(e) => setSessionDescription(e.target.value)}
-              rows={3}
-            />
-          </div>
-          
           <div className="space-y-2">
             <Label htmlFor="main-page-type">Page Type</Label>
             <Select value={mainPageId} onValueChange={setMainPageId}>
