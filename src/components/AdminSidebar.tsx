@@ -3,12 +3,12 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Settings, Users, LayoutDashboard, FileText, Database, CreditCard, Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 const AdminSidebar = () => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -75,14 +75,20 @@ const AdminSidebar = () => {
         <div className="flex items-center">
           <div className="flex-shrink-0">
             <div className="h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center text-white font-semibold">
-              A
+              {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || "A"}
             </div>
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium">{user?.name || "Admin"}</p>
+            <p className="text-sm font-medium">{user?.user_metadata?.full_name || "Admin"}</p>
             <p className="text-xs text-opacity-90">{user?.email || "admin@example.com"}</p>
           </div>
         </div>
+        <button
+          onClick={() => signOut()}
+          className="mt-2 w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300"
+        >
+          Sign Out
+        </button>
       </div>
     </div>
   );
