@@ -120,6 +120,7 @@ const AdminPages = () => {
       name: editSubPageName,
       description: editSubPageDescription,
       html: editSubPageHtml,
+      fields: selectedSubPage.fields || [], // Ensure fields is always an array
     };
     
     updateSubPage(selectedMainPageId, updatedSubPage);
