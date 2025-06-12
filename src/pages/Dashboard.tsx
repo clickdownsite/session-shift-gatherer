@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -268,7 +266,7 @@ const Dashboard = () => {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {mainPage?.subPages.map((subPage) => (
+                                {(mainPage?.subPages || []).map((subPage) => (
                                   <SelectItem key={subPage.id} value={subPage.id}>
                                     {subPage.name}
                                   </SelectItem>
@@ -387,4 +385,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
