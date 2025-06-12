@@ -27,8 +27,8 @@ const AdminData = () => {
   const { sessions = [], exportSessionData = () => {} } = useSessionContext();
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [pageTypeFilter, setPageTypeFilter] = useState('');
-  const [userFilter, setUserFilter] = useState('');
+  const [pageTypeFilter, setPageTypeFilter] = useState('all');
+  const [userFilter, setUserFilter] = useState('all');
   const [filteredData, setFilteredData] = useState(sessions);
   
   // Update filtered data when sessions change
@@ -49,11 +49,11 @@ const AdminData = () => {
       );
     }
     
-    if (pageTypeFilter) {
+    if (pageTypeFilter && pageTypeFilter !== 'all') {
       filtered = filtered.filter(session => session.pageType === pageTypeFilter);
     }
     
-    if (userFilter) {
+    if (userFilter && userFilter !== 'all') {
       filtered = filtered.filter(session => session.id === userFilter);
     }
     
@@ -67,8 +67,8 @@ const AdminData = () => {
 
   const resetFilters = () => {
     setSearchQuery('');
-    setPageTypeFilter('');
-    setUserFilter('');
+    setPageTypeFilter('all');
+    setUserFilter('all');
     setFilteredData(sessions);
     
     toast({
@@ -155,9 +155,9 @@ const AdminData = () => {
                   <SelectValue placeholder="All Page Types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Page Types</SelectItem>
+                  <SelectItem value="all">All Page Types</SelectItem>
                   {getUniquePageTypes().map((pageType, idx) => (
-                    <SelectItem key={idx} value={pageType || ""}>{pageType || "Unknown"}</SelectItem>
+                    <SelectItem key={idx} value={pageType || "unknown"}>{pageType || "Unknown"}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -170,7 +170,7 @@ const AdminData = () => {
                   <SelectValue placeholder="All Sessions" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Sessions</SelectItem>
+                  <SelectItem value="all">All Sessions</SelectItem>
                   {getUniqueUsers().map((sessionId, idx) => (
                     <SelectItem key={idx} value={sessionId}>{sessionId}</SelectItem>
                   ))}
