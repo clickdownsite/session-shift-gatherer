@@ -1,7 +1,7 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Calendar, Settings, User, LinkIcon, Moon, Sun } from 'lucide-react';
+import { Calendar, Settings, User, LinkIcon, Moon, Sun, Shield } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -43,10 +43,11 @@ const Sidebar = () => {
 
       <div className="mt-auto">
         <Link 
-          to="/admin"
+          to="/admin-login"
           className="flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
-          Admin Panel →
+          <Shield className="mr-3 h-5 w-5" />
+          Admin Panel
         </Link>
       </div>
       

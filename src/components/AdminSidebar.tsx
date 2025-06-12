@@ -1,14 +1,13 @@
 
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Settings, Users, LayoutDashboard, FileText, Database, CreditCard, Moon, Sun } from 'lucide-react';
+import { Settings, Users, LayoutDashboard, FileText, Database, CreditCard, Moon, Sun, LogOut } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/hooks/useAuth';
 
 const AdminSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut } = useAuth();
   
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -18,6 +17,11 @@ const AdminSidebar = () => {
     { name: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
     { name: 'Settings', href: '/admin/settings', icon: Settings }
   ];
+
+  const handleSignOut = () => {
+    localStorage.removeItem('adminSession');
+    navigate('/admin-login');
+  };
   
   return (
     <div className="hidden md:flex flex-col bg-sidebar text-sidebar-foreground w-64 p-4 shadow-lg">
@@ -75,18 +79,19 @@ const AdminSidebar = () => {
         <div className="flex items-center">
           <div className="flex-shrink-0">
             <div className="h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center text-white font-semibold">
-              {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || "A"}
+              A
             </div>
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium">{user?.user_metadata?.full_name || "Admin"}</p>
-            <p className="text-xs text-opacity-90">{user?.email || "admin@example.com"}</p>
+            <p className="text-sm font-medium">Admin</p>
+            <p className="text-xs text-opacity-90">System Administrator</p>
           </div>
         </div>
         <button
-          onClick={() => signOut()}
-          className="mt-2 w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300"
+          onClick={handleSignOut}
+          className="mt-2 w-full flex items-center px-4 py-2 text-sm text-red-400 hover:text-red-300"
         >
+          <LogOut className="h-4 w-4 mr-2" />
           Sign Out
         </button>
       </div>

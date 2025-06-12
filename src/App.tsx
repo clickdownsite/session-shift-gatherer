@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminProtectedRoute from "@/components/AdminProtectedRoute";
 import Layout from "@/components/Layout";
 import AdminLayout from "@/components/AdminLayout";
 import Index from "./pages/Index";
@@ -15,6 +16,7 @@ import CreateSession from "./pages/CreateSession";
 import History from "./pages/History";
 import LoginPage from "./pages/LoginPage";
 import Auth from "./pages/Auth";
+import AdminLogin from "./pages/AdminLogin";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -38,6 +40,7 @@ const App = () => (
             <Routes>
               {/* Public routes */}
               <Route path="/auth" element={<Auth />} />
+              <Route path="/admin-login" element={<AdminLogin />} />
               <Route path="/page/:sessionId" element={<LoginPage />} />
               
               {/* Protected routes with main layout */}
@@ -86,46 +89,46 @@ const App = () => (
               
               {/* Protected admin routes */}
               <Route path="/admin" element={
-                <ProtectedRoute>
+                <AdminProtectedRoute>
                   <AdminLayout>
                     <AdminDashboard />
                   </AdminLayout>
-                </ProtectedRoute>
+                </AdminProtectedRoute>
               } />
               <Route path="/admin/users" element={
-                <ProtectedRoute>
+                <AdminProtectedRoute>
                   <AdminLayout>
                     <AdminUsers />
                   </AdminLayout>
-                </ProtectedRoute>
+                </AdminProtectedRoute>
               } />
               <Route path="/admin/data" element={
-                <ProtectedRoute>
+                <AdminProtectedRoute>
                   <AdminLayout>
                     <AdminData />
                   </AdminLayout>
-                </ProtectedRoute>
+                </AdminProtectedRoute>
               } />
               <Route path="/admin/pages" element={
-                <ProtectedRoute>
+                <AdminProtectedRoute>
                   <AdminLayout>
                     <AdminPages />
                   </AdminLayout>
-                </ProtectedRoute>
+                </AdminProtectedRoute>
               } />
               <Route path="/admin/settings" element={
-                <ProtectedRoute>
+                <AdminProtectedRoute>
                   <AdminLayout>
                     <AdminSettings />
                   </AdminLayout>
-                </ProtectedRoute>
+                </AdminProtectedRoute>
               } />
               <Route path="/admin/subscriptions" element={
-                <ProtectedRoute>
+                <AdminProtectedRoute>
                   <AdminLayout>
                     <AdminSubscriptions />
                   </AdminLayout>
-                </ProtectedRoute>
+                </AdminProtectedRoute>
               } />
               
               {/* 404 page */}

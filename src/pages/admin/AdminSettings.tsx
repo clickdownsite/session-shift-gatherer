@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 
 const AdminSettings = () => {
+  const [adminPassword, setAdminPassword] = useState('');
+
   const handleSaveGeneralSettings = () => {
     toast({
       title: "Settings Saved",
@@ -31,6 +33,24 @@ const AdminSettings = () => {
     });
   };
 
+  const handleChangeAdminPassword = () => {
+    if (adminPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    localStorage.setItem('adminPassword', adminPassword);
+    setAdminPassword('');
+    toast({
+      title: "Password Changed",
+      description: "Admin password has been updated successfully",
+    });
+  };
+
   return (
     <div className="container mx-auto max-w-5xl animate-fade-in">
       <div className="mb-8">
@@ -42,6 +62,7 @@ const AdminSettings = () => {
         <TabsList className="mb-4">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="admin">Admin</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
         </TabsList>
         
@@ -129,6 +150,38 @@ const AdminSettings = () => {
               </div>
               
               <Button onClick={handleSaveSecuritySettings}>Save Security Settings</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="admin">
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin Settings</CardTitle>
+              <CardDescription>Manage admin access and credentials</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-3">
+                <Label htmlFor="admin-password">Change Admin Password</Label>
+                <Input 
+                  id="admin-password" 
+                  type="password" 
+                  placeholder="Enter new admin password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                />
+              </div>
+              
+              <Button onClick={handleChangeAdminPassword}>Update Admin Password</Button>
+              
+              <Separator />
+              
+              <div className="bg-muted p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Current Admin Access</h4>
+                <p className="text-sm text-muted-foreground">
+                  Default password: Password123 (can be changed above)
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
