@@ -62,7 +62,7 @@ const Dashboard = () => {
   
   const getPageTypeName = (mainPageId: string, subPageId: string) => {
     const mainPage = getMainPageById(mainPageId);
-    const subPage = mainPage ? mainPage.subPages.find(sp => sp.id === subPageId) : undefined;
+    const subPage = mainPage?.subPages?.find(sp => sp.id === subPageId);
     
     return {
       mainName: mainPage?.name || 'Unknown',
@@ -197,7 +197,7 @@ const Dashboard = () => {
                   session.currentSubPageId
                 );
                 const mainPage = getMainPageById(session.mainPageId);
-                const currentSubPage = mainPage?.subPages.find(
+                const currentSubPage = mainPage?.subPages?.find(
                   sp => sp.id === session.currentSubPageId
                 );
                 
