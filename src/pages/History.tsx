@@ -8,21 +8,18 @@ import { useSessionContext } from '@/contexts/SessionContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/sonner';
+import { useSessionData } from '@/hooks/useSupabaseSession';
 
 const History = () => {
-  const { sessions, exportSessionData } = useSessionContext();
+  const { sessions, exportSessionData, getMainPageById } = useSessionContext();
   const [viewingSessionData, setViewingSessionData] = useState<{ 
-    sessionId: string, 
-    data: Array<{ 
-      timestamp: string; 
-      ip: string; 
-      location: string; 
-      formData: Record<string, string>; 
-    }> 
+    sessionId: string
   } | null>(null);
   
-  // Filter sessions that have data entries (simulating historical sessions)
-  const historicalSessions = sessions.filter(session => session.data.length > 0);
+  const { sessionData } = useSessionData(viewingSessionData?.sessionId);
+  
+  // For now, show all sessions as historical (in a real app, you'd filter by closed sessions)
+  const historicalSessions = sessions;
   
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -35,13 +32,9 @@ const History = () => {
   };
 
   const viewSessionData = (sessionId: string) => {
-    const session = sessions.find(s => s.id === sessionId);
-    if (session) {
-      setViewingSessionData({
-        sessionId: session.id,
-        data: session.data
-      });
-    }
+    setViewingSessionData({
+      sessionId: sessionId
+    });
   };
 
   const handleCopyFieldValue = (value: string) => {
@@ -56,7 +49,7 @@ const History = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Session History</h1>
-          <p className="text-muted-foreground">View and analyze your past sessions</p>
+          <p className="text-muted-foreground">View and analyze your sessions</p>
         </div>
       </div>
       
@@ -66,53 +59,58 @@ const History = () => {
             <div className="mb-4 text-muted-foreground">
               <Calendar className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium mb-2">No session history</h3>
-            <p className="text-muted-foreground mb-4">Your completed sessions with data will appear here</p>
+            <h3 className="text-lg font-medium mb-2">No sessions found</h3>
+            <p className="text-muted-foreground mb-4">Your sessions will appear here once created</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {historicalSessions.map((session) => (
-              <Card key={session.id} className="border shadow-sm">
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg font-medium">Session ID: {session.id}</CardTitle>
-                    <Badge variant={session.mainPageId === 'login' ? 'default' : 'outline'} className={session.mainPageId === 'login' ? 'bg-brand-purple' : ''}>
-                      {session.pageType || "Unknown"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center text-xs text-muted-foreground mt-1">
-                    <Calendar className="h-3 w-3 mr-1" />
-                    <span>Created {formatDate(session.createdAt)}</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="pb-3">
-                  <div className="mt-2 flex items-center">
-                    <span className="text-sm font-medium">Data captured:</span>
-                    <Badge variant="outline" className="ml-2">
-                      {session.data.length} {session.data.length === 1 ? 'entry' : 'entries'}
-                    </Badge>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => viewSessionData(session.id)}
-                    >
-                      <Eye className="h-4 w-4 mr-2" /> View Data
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => exportSessionData(session.id)}
-                    >
-                      <Download className="h-4 w-4 mr-2" /> Export Data
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {historicalSessions.map((session) => {
+              const mainPage = getMainPageById(session.mainPageId);
+              const pageTypeName = mainPage?.name || session.pageType || "Unknown";
+              
+              return (
+                <Card key={session.id} className="border shadow-sm">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-lg font-medium">Session: {session.id}</CardTitle>
+                      <Badge variant={session.mainPageId === 'login' ? 'default' : 'outline'} className={session.mainPageId === 'login' ? 'bg-brand-purple' : ''}>
+                        {pageTypeName}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center text-xs text-muted-foreground mt-1">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      <span>Created {formatDate(session.createdAt)}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-3">
+                    <div className="mt-2 flex items-center">
+                      <span className="text-sm font-medium">Status:</span>
+                      <Badge variant={session.active ? "default" : "secondary"} className="ml-2">
+                        {session.active ? "Active" : "Closed"}
+                      </Badge>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => viewSessionData(session.id)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" /> View Data
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => exportSessionData(session.id)}
+                      >
+                        <Download className="h-4 w-4 mr-2" /> Export
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -123,38 +121,38 @@ const History = () => {
           <DialogHeader>
             <DialogTitle>Session Data: {viewingSessionData?.sessionId}</DialogTitle>
           </DialogHeader>
-          {viewingSessionData?.data.length === 0 ? (
+          {sessionData.length === 0 ? (
             <div className="text-center py-8">
               <p>No data has been captured for this session yet.</p>
             </div>
           ) : (
             <div className="space-y-6">
-              {viewingSessionData?.data.map((entry, index) => (
+              {sessionData.map((entry, index) => (
                 <Card key={index} className="border">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-center">
                       <div className="text-sm text-muted-foreground">
-                        Entry #{index + 1} • {formatDate(entry.timestamp)}
+                        Entry #{index + 1} • {new Date(entry.timestamp).toLocaleString()}
                       </div>
                       <Badge variant="outline" className="text-xs">
-                        {entry.location}
+                        {entry.location || 'Unknown Location'}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {Object.entries(entry.formData).map(([key, value]) => (
+                      {Object.entries(entry.form_data || {}).map(([key, value]) => (
                         <div key={key} className="grid grid-cols-12 gap-2 items-center">
                           <div className="col-span-4 font-medium text-sm">{key}:</div>
                           <div className="col-span-7 text-sm truncate">
-                            {key.includes('password') ? '••••••••' : value}
+                            {key.includes('password') ? '••••••••' : String(value)}
                           </div>
                           <div className="col-span-1 flex justify-end">
                             <Button 
                               variant="ghost" 
                               size="icon" 
                               className="h-6 w-6" 
-                              onClick={() => handleCopyFieldValue(value)}
+                              onClick={() => handleCopyFieldValue(String(value))}
                             >
                               <Copy className="h-3.5 w-3.5" />
                             </Button>

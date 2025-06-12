@@ -1,8 +1,9 @@
+
 import React, { createContext, useContext, useEffect } from 'react';
-import { useSupabaseSessions, useSessionData } from '@/hooks/useSupabaseSession';
+import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/sonner';
 
 // Page type definitions
 interface SubPage {
@@ -32,7 +33,7 @@ interface Session {
   id: string;
   mainPageId: string;
   currentSubPageId: string;
-  pageType?: string; // Added pageType property
+  pageType?: string;
   createdAt: string;
   data: SessionData[];
   active: boolean;
@@ -88,8 +89,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         },
         (payload) => {
           // Show notification for new data
-          toast({
-            title: "New Data Received",
+          toast("New Data Received", {
             description: `New form submission received for session`,
           });
         }
@@ -101,16 +101,37 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [user]);
 
+  // Transform Supabase data to match expected format
+  const transformedMainPages = mainPages.map(page => ({
+    ...page,
+    subPages: subPages.filter(subPage => subPage.main_page_id === page.id).map(subPage => ({
+      ...subPage,
+      parentId: subPage.main_page_id,
+      fields: subPage.fields || []
+    }))
+  }));
+
+  const transformedSessions = sessions.map(session => ({
+    ...session,
+    mainPageId: session.main_page_id,
+    currentSubPageId: session.current_sub_page_id,
+    pageType: session.page_type,
+    createdAt: session.created_at,
+    hasNewData: session.has_new_data,
+    data: [] // Will be loaded separately when needed
+  }));
+
   const getMainPageById = (mainPageId: string) => {
-    return mainPages.find(page => page.id === mainPageId);
+    return transformedMainPages.find(page => page.id === mainPageId);
   };
 
   const getSubPageById = (mainPageId: string, subPageId: string) => {
-    return subPages.find(subPage => subPage.id === subPageId && subPage.main_page_id === mainPageId);
+    const mainPage = getMainPageById(mainPageId);
+    return mainPage?.subPages?.find(subPage => subPage.id === subPageId);
   };
 
   const getSessionById = (sessionId: string) => {
-    return sessions.find(session => session.id === sessionId);
+    return transformedSessions.find(session => session.id === sessionId);
   };
 
   const addSession = (mainPageId: string, subPageId: string) => {
@@ -213,26 +234,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteSubPage = (mainPageId: string, subPageId: string) => {
     console.log('Delete sub page:', mainPageId, subPageId);
   };
-
-  // Transform Supabase data to match expected format
-  const transformedSessions = sessions.map(session => ({
-    ...session,
-    mainPageId: session.main_page_id,
-    currentSubPageId: session.current_sub_page_id,
-    pageType: session.page_type,
-    createdAt: session.created_at,
-    hasNewData: session.has_new_data,
-    data: [] // Will be loaded separately when needed
-  }));
-
-  const transformedMainPages = mainPages.map(page => ({
-    ...page,
-    subPages: subPages.filter(subPage => subPage.main_page_id === page.id).map(subPage => ({
-      ...subPage,
-      parentId: subPage.main_page_id,
-      fields: subPage.fields || []
-    }))
-  }));
 
   return (
     <SessionContext.Provider

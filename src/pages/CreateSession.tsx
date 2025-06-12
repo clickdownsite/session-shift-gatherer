@@ -5,34 +5,41 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/sonner';
 import { useSessionContext } from '@/contexts/SessionContext';
 
 const CreateSession = () => {
   const { addSession, mainPages } = useSessionContext();
   const navigate = useNavigate();
-  const [mainPageId, setMainPageId] = useState(mainPages[0]?.id || '');
+  const [mainPageId, setMainPageId] = useState('');
   const [subPageId, setSubPageId] = useState('');
   
   // Set initial subpage when main page changes
   React.useEffect(() => {
-    const selectedMainPage = mainPages.find(p => p.id === mainPageId);
-    if (selectedMainPage && selectedMainPage.subPages.length > 0) {
-      setSubPageId(selectedMainPage.subPages[0].id);
-    } else {
-      setSubPageId('');
+    if (mainPageId) {
+      const selectedMainPage = mainPages.find(p => p.id === mainPageId);
+      if (selectedMainPage && selectedMainPage.subPages && selectedMainPage.subPages.length > 0) {
+        setSubPageId(selectedMainPage.subPages[0].id);
+      } else {
+        setSubPageId('');
+      }
     }
   }, [mainPageId, mainPages]);
+
+  // Set initial main page when mainPages loads
+  React.useEffect(() => {
+    if (mainPages.length > 0 && !mainPageId) {
+      setMainPageId(mainPages[0].id);
+    }
+  }, [mainPages, mainPageId]);
   
   const selectedMainPage = mainPages.find(p => p.id === mainPageId);
-  const selectedSubPage = selectedMainPage?.subPages.find(p => p.id === subPageId);
+  const selectedSubPage = selectedMainPage?.subPages?.find(p => p.id === subPageId);
   
   const handleCreateSession = () => {
     if (!mainPageId || !subPageId) {
-      toast({
-        title: "Error",
-        description: "Please select both a page type and subpage",
-        variant: "destructive"
+      toast.error("Error", {
+        description: "Please select both a page type and subpage"
       });
       return;
     }
@@ -67,7 +74,7 @@ const CreateSession = () => {
             </Select>
           </div>
           
-          {selectedMainPage && (
+          {selectedMainPage && selectedMainPage.subPages && selectedMainPage.subPages.length > 0 && (
             <div className="space-y-2">
               <Label htmlFor="sub-page-type">Sub Page</Label>
               <Select value={subPageId} onValueChange={setSubPageId}>
