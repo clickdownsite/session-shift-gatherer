@@ -107,11 +107,18 @@ const AdminData = () => {
   };
 
   const handleCopyValue = (value: any) => {
-    navigator.clipboard.writeText(typeof value === 'object' ? JSON.stringify(value) : value.toString());
+    navigator.clipboard.writeText(typeof value === 'object' ? JSON.stringify(value) : String(value));
     toast({
       title: "Copied to clipboard",
       description: "Value has been copied to clipboard"
     });
+  };
+
+  const formatValue = (value: unknown): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    return JSON.stringify(value);
   };
 
   return (
@@ -248,7 +255,7 @@ const AdminData = () => {
                                 <span className="font-medium mr-2">{key}:</span>
                                 <div className="flex items-center">
                                   <span className="text-sm mr-2 max-w-[200px] truncate">
-                                    {key.includes('password') ? '••••••••' : value}
+                                    {key.includes('password') ? '••••••••' : formatValue(value)}
                                   </span>
                                   <Button 
                                     variant="ghost" 
