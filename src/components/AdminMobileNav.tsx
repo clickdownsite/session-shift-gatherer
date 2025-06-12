@@ -5,7 +5,7 @@ import { Menu, Settings, Users, LayoutDashboard, FileText, Database, CreditCard,
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 export function AdminMobileNav() {
   const [open, setOpen] = useState(false);
@@ -94,7 +94,7 @@ export function AdminMobileNav() {
                   </div>
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium">{user?.name || "Admin"}</p>
+                  <p className="text-sm font-medium">{user?.user_metadata?.full_name || "Admin"}</p>
                   <p className="text-xs text-opacity-90">{user?.email || "admin@example.com"}</p>
                 </div>
               </div>
