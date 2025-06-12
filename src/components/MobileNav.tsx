@@ -1,16 +1,16 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Calendar, Settings, User, LinkIcon, Moon, Sun, X } from 'lucide-react';
+import { Menu, Calendar, Settings, User, LinkIcon, Moon, Sun, X, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   
   const navigation = [
     { name: 'Sessions', href: '/', icon: LinkIcon },
@@ -53,15 +53,14 @@ export function MobileNav() {
             </div>
 
             <div className="mt-auto">
-              {user?.isAdmin && (
-                <Link 
-                  to="/admin"
-                  className="flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  onClick={() => setOpen(false)}
-                >
-                  Admin Panel →
-                </Link>
-              )}
+              <Link 
+                to="/admin-login"
+                className="flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                onClick={() => setOpen(false)}
+              >
+                <Shield className="mr-3 h-5 w-5" />
+                Admin Panel
+              </Link>
             </div>
             
             <div className="mt-2 px-4 py-3">
@@ -90,14 +89,23 @@ export function MobileNav() {
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="h-8 w-8 rounded-full bg-purple-300 flex items-center justify-center text-purple-800 font-semibold">
-                    {user?.name?.charAt(0) || "U"}
+                    {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || "U"}
                   </div>
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium">{user?.name || "User"}</p>
+                  <p className="text-sm font-medium">{user?.user_metadata?.full_name || "User"}</p>
                   <p className="text-xs text-opacity-90">{user?.email || "user@example.com"}</p>
                 </div>
               </div>
+              <button
+                onClick={() => {
+                  signOut();
+                  setOpen(false);
+                }}
+                className="mt-2 w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300"
+              >
+                Sign Out
+              </button>
             </div>
           </div>
         </SheetContent>
