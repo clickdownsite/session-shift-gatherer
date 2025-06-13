@@ -224,7 +224,8 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .from('main_pages')
         .update({
           name: updatedPage.name,
-          description: updatedPage.description
+          description: updatedPage.description,
+          updated_at: new Date().toISOString()
         })
         .eq('id', updatedPage.id);
 
@@ -232,8 +233,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['main_pages'] });
+      
+      toast.success("Main page updated successfully");
     } catch (error) {
       console.error('Error updating main page:', error);
+      toast.error("Failed to update main page");
       throw error;
     }
   };
@@ -246,8 +250,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .update({
           name: updatedSubPage.name,
           description: updatedSubPage.description,
-          html: updatedSubPage.html,
-          fields: updatedSubPage.fields
+          html: updatedSubPage.html || '',
+          css: updatedSubPage.css || '',
+          javascript: updatedSubPage.javascript || '',
+          fields: updatedSubPage.fields || [],
+          updated_at: new Date().toISOString()
         })
         .eq('id', updatedSubPage.id);
 
@@ -255,8 +262,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+      
+      toast.success("Sub page updated successfully");
     } catch (error) {
       console.error('Error updating sub page:', error);
+      toast.error("Failed to update sub page");
       throw error;
     }
   };
@@ -264,22 +274,27 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addMainPage = async (newPage: any): Promise<string> => {
     try {
       console.log('Adding main page:', newPage);
-      const newPageId = `page_${Date.now()}`;
+      const newPageId = `page_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       const { error } = await supabase
         .from('main_pages')
         .insert({
           id: newPageId,
           name: newPage.name,
-          description: newPage.description
+          description: newPage.description,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
 
       if (error) {
         console.error('Error inserting main page:', error);
+        toast.error("Failed to create main page");
         throw error;
       }
       
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['main_pages'] });
+      
+      toast.success("Main page created successfully");
       return newPageId;
     } catch (error) {
       console.error('Error adding main page:', error);
@@ -298,17 +313,24 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
           main_page_id: mainPageId,
           name: newSubPage.name,
           description: newSubPage.description,
-          html: newSubPage.html,
-          fields: newSubPage.fields || []
+          html: newSubPage.html || '',
+          css: newSubPage.css || '',
+          javascript: newSubPage.javascript || '',
+          fields: newSubPage.fields || [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
 
       if (error) {
         console.error('Error inserting sub page:', error);
+        toast.error("Failed to create sub page");
         throw error;
       }
       
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+      
+      toast.success("Sub page created successfully");
       return newSubPageId;
     } catch (error) {
       console.error('Error adding sub page:', error);
@@ -319,6 +341,16 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteMainPage = async (mainPageId: string) => {
     try {
       console.log('Deleting main page:', mainPageId);
+      
+      // First delete all sub pages
+      const { error: subPageError } = await supabase
+        .from('sub_pages')
+        .delete()
+        .eq('main_page_id', mainPageId);
+
+      if (subPageError) throw subPageError;
+
+      // Then delete the main page
       const { error } = await supabase
         .from('main_pages')
         .delete()
@@ -328,8 +360,12 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['main_pages'] });
+      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+      
+      toast.success("Main page deleted successfully");
     } catch (error) {
       console.error('Error deleting main page:', error);
+      toast.error("Failed to delete main page");
       throw error;
     }
   };
@@ -346,8 +382,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+      
+      toast.success("Sub page deleted successfully");
     } catch (error) {
       console.error('Error deleting sub page:', error);
+      toast.error("Failed to delete sub page");
       throw error;
     }
   };

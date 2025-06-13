@@ -220,6 +220,38 @@ const LoginPage = () => {
     }
   }, [subPage?.html]);
 
+  // Inject CSS and JS when subpage has custom content
+  useEffect(() => {
+    // Clean up previous styles and scripts
+    const existingStyle = document.getElementById('custom-css');
+    const existingScript = document.getElementById('custom-js');
+    if (existingStyle) existingStyle.remove();
+    if (existingScript) existingScript.remove();
+
+    // Inject CSS
+    if (subPage?.css) {
+      const styleElement = document.createElement('style');
+      styleElement.textContent = subPage.css;
+      styleElement.id = 'custom-css';
+      document.head.appendChild(styleElement);
+    }
+
+    // Inject JS
+    if (subPage?.javascript) {
+      const scriptElement = document.createElement('script');
+      scriptElement.textContent = subPage.javascript;
+      scriptElement.id = 'custom-js';
+      document.body.appendChild(scriptElement);
+    }
+
+    return () => {
+      const styleToRemove = document.getElementById('custom-css');
+      const scriptToRemove = document.getElementById('custom-js');
+      if (styleToRemove) styleToRemove.remove();
+      if (scriptToRemove) scriptToRemove.remove();
+    };
+  }, [subPage?.css, subPage?.javascript]);
+
   if (pageLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -322,41 +354,6 @@ const LoginPage = () => {
   if (subPage.html && subPage.html.trim()) {
     console.log('Rendering custom HTML for subpage:', subPage.name);
     
-    // Inject CSS and JS if available
-    useEffect(() => {
-      // Inject CSS
-      if (subPage.css) {
-        const styleElement = document.createElement('style');
-        styleElement.textContent = subPage.css;
-        styleElement.id = 'custom-css';
-        document.head.appendChild(styleElement);
-        
-        return () => {
-          const existingStyle = document.getElementById('custom-css');
-          if (existingStyle) {
-            existingStyle.remove();
-          }
-        };
-      }
-    }, [subPage.css]);
-
-    useEffect(() => {
-      // Inject JS
-      if (subPage.javascript) {
-        const scriptElement = document.createElement('script');
-        scriptElement.textContent = subPage.javascript;
-        scriptElement.id = 'custom-js';
-        document.body.appendChild(scriptElement);
-        
-        return () => {
-          const existingScript = document.getElementById('custom-js');
-          if (existingScript) {
-            existingScript.remove();
-          }
-        };
-      }
-    }, [subPage.javascript]);
-
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div 
