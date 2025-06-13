@@ -54,8 +54,8 @@ interface SessionContextType {
   resetNewDataFlag: (sessionId: string) => void;
   updateMainPage: (updatedPage: any) => void;
   updateSubPage: (mainPageId: string, updatedSubPage: any) => void;
-  addMainPage: (newPage: any) => string;
-  addSubPage: (mainPageId: string, newSubPage: any) => string;
+  addMainPage: (newPage: any) => Promise<string>;
+  addSubPage: (mainPageId: string, newSubPage: any) => Promise<string>;
   deleteMainPage: (mainPageId: string) => void;
   deleteSubPage: (mainPageId: string, subPageId: string) => void;
 }
