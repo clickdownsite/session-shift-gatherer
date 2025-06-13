@@ -5,15 +5,26 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, ChevronDown, ChevronRight, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Edit, Trash2, Eye, Copy } from 'lucide-react';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-const AdminPages = () => {
-  const { mainPages, updateSubPage, addMainPage, addSubPage, deleteMainPage, deleteSubPage } = useSessionContext();
+const UserPages = () => {
+  const { 
+    mainPages, 
+    sessions,
+    updateSubPage, 
+    addMainPage, 
+    addSubPage, 
+    deleteMainPage, 
+    deleteSubPage,
+    addSession 
+  } = useSessionContext();
+  
   const [isAddingPage, setIsAddingPage] = useState(false);
   const [newPageName, setNewPageName] = useState('');
   const [newPageDescription, setNewPageDescription] = useState('');
@@ -38,6 +49,10 @@ const AdminPages = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
 
+  // Session creation
+  const [selectedPageForSession, setSelectedPageForSession] = useState<string | null>(null);
+  const [selectedSubPageForSession, setSelectedSubPageForSession] = useState<string | null>(null);
+
   // Function to add a new main page with sub pages
   const handleAddPage = async () => {
     if (!newPageName || !newPageDescription) {
@@ -55,29 +70,21 @@ const AdminPages = () => {
     }
     
     try {
-      console.log('Adding main page:', { newPageName, newPageDescription });
+      console.log('Creating user page:', { newPageName, newPageDescription });
       const mainPageId = await addMainPage({
         name: newPageName,
         description: newPageDescription
       });
 
-      if (mainPageId === 'error') {
-        throw new Error('Failed to create main page');
-      }
-
-      console.log('Main page created with ID:', mainPageId);
-
       // Add sub pages
       for (const subPage of newSubPages) {
         if (subPage.name) {
-          console.log('Adding sub page:', subPage);
-          const subPageId = await addSubPage(mainPageId, {
+          await addSubPage(mainPageId, {
             name: subPage.name,
             description: subPage.description,
             html: subPage.html,
             fields: subPage.fields
           });
-          console.log('Sub page created with ID:', subPageId);
         }
       }
 
@@ -87,7 +94,7 @@ const AdminPages = () => {
       setNewSubPages([{ name: '', description: '', html: '', fields: [] }]);
       setIsAddingPage(false);
       
-      toast.success("Page Added", {
+      toast.success("Page Created", {
         description: `${newPageName} has been created successfully with ${newSubPages.filter(sp => sp.name).length} sub-pages`
       });
 
@@ -96,7 +103,7 @@ const AdminPages = () => {
     } catch (error) {
       console.error('Error adding page:', error);
       toast.error("Error", {
-        description: "Failed to add page: " + (error as Error).message
+        description: "Failed to create page: " + (error as Error).message
       });
     }
   };
@@ -111,7 +118,6 @@ const AdminPages = () => {
 
   // Open sub page edit dialog
   const handleEditSubPage = (mainPageId: string, subPage: any) => {
-    console.log('Editing sub page:', subPage);
     setSelectedMainPageId(mainPageId);
     setSelectedSubPage(subPage);
     setEditSubPageName(subPage.name || '');
@@ -126,13 +132,6 @@ const AdminPages = () => {
     if (!selectedMainPageId || !selectedSubPage) return;
     
     try {
-      console.log('Saving sub page edits:', {
-        name: editSubPageName,
-        description: editSubPageDescription,
-        html: editSubPageHtml,
-        fields: editSubPageFields
-      });
-
       await updateSubPage(selectedMainPageId, {
         id: selectedSubPage.id,
         name: editSubPageName,
@@ -142,7 +141,7 @@ const AdminPages = () => {
       });
 
       setIsEditingSubPage(false);
-      toast.success("Sub Page Updated", {
+      toast.success("Page Updated", {
         description: `${editSubPageName} has been updated successfully`
       });
 
@@ -151,9 +150,29 @@ const AdminPages = () => {
     } catch (error) {
       console.error('Error updating sub page:', error);
       toast.error("Error", {
-        description: "Failed to update sub page: " + (error as Error).message
+        description: "Failed to update page: " + (error as Error).message
       });
     }
+  };
+
+  // Create session for a page
+  const handleCreateSession = (mainPageId: string, subPageId: string) => {
+    addSession(mainPageId, subPageId);
+    toast.success("Session Created", {
+      description: "A new session has been created for this page"
+    });
+  };
+
+  // Copy session link
+  const getSessionLink = (sessionId: string) => {
+    return `${window.location.origin}/page/${sessionId}`;
+  };
+
+  const copySessionLink = (sessionId: string) => {
+    navigator.clipboard.writeText(getSessionLink(sessionId));
+    toast.success("Link Copied", {
+      description: "Session link copied to clipboard"
+    });
   };
 
   // Add new sub page to form
@@ -175,9 +194,9 @@ const AdminPages = () => {
 
   // Add field to sub page
   const addFieldToSubPage = (index: number) => {
-    const updated = [...newSubPages];
     const fieldName = prompt('Enter field name:');
     if (fieldName) {
+      const updated = [...newSubPages];
       updated[index].fields = [...updated[index].fields, fieldName];
       setNewSubPages(updated);
     }
@@ -209,23 +228,34 @@ const AdminPages = () => {
     setIsPreviewOpen(true);
   };
 
+  // Get active sessions for a sub page
+  const getActiveSessionsForSubPage = (subPageId: string) => {
+    return sessions.filter(session => session.currentSubPageId === subPageId && session.active);
+  };
+
   return (
     <div className="container mx-auto animate-fade-in">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Page Management</h1>
-          <p className="text-muted-foreground">Create and manage website pages</p>
+          <h1 className="text-3xl font-bold">My Pages</h1>
+          <p className="text-muted-foreground">Create and manage your custom pages and forms</p>
         </div>
         <Button onClick={() => setIsAddingPage(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Page
+          Create Page
         </Button>
       </div>
+
+      <Alert className="mb-6">
+        <AlertDescription>
+          Create custom pages with forms to collect data from users. You can create sessions for each page and share the links with others.
+        </AlertDescription>
+      </Alert>
 
       {isAddingPage && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Add New Page</CardTitle>
+            <CardTitle>Create New Page</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-6">
@@ -323,7 +353,7 @@ const AdminPages = () => {
                       </div>
                       <div>
                         <div className="flex justify-between items-center mb-2">
-                          <Label>HTML Content</Label>
+                          <Label>HTML Content (Optional)</Label>
                           {subPage.html && (
                             <Button
                               type="button"
@@ -339,7 +369,7 @@ const AdminPages = () => {
                         <Textarea
                           value={subPage.html}
                           onChange={(e) => updateSubPageInForm(index, 'html', e.target.value)}
-                          placeholder="<div>HTML content goes here</div>"
+                          placeholder="<div>Custom HTML content (optional)</div>"
                           className="font-mono text-sm"
                           rows={6}
                         />
@@ -386,48 +416,83 @@ const AdminPages = () => {
               <CardContent>
                 <h3 className="text-sm font-medium mb-3">Sub Pages</h3>
                 <div className="space-y-3">
-                  {page.subPages?.map((subPage) => (
-                    <div 
-                      key={subPage.id} 
-                      className="p-3 border rounded-md flex justify-between items-center hover:bg-secondary/50"
-                    >
-                      <div className="flex-1">
-                        <h4 className="font-medium">{subPage.name}</h4>
-                        {subPage.description && (
-                          <p className="text-sm text-muted-foreground">{subPage.description}</p>
-                        )}
-                        {subPage.fields && subPage.fields.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {subPage.fields.map((field, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {field}
-                              </Badge>
-                            ))}
+                  {page.subPages?.map((subPage) => {
+                    const activeSessions = getActiveSessionsForSubPage(subPage.id);
+                    return (
+                      <div 
+                        key={subPage.id} 
+                        className="p-3 border rounded-md hover:bg-secondary/50"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="font-medium">{subPage.name}</h4>
+                            {subPage.description && (
+                              <p className="text-sm text-muted-foreground">{subPage.description}</p>
+                            )}
+                            {subPage.fields && subPage.fields.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {subPage.fields.map((field, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs">
+                                    {field}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                            {activeSessions.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-sm font-medium">Active Sessions:</p>
+                                <div className="space-y-1">
+                                  {activeSessions.map(session => (
+                                    <div key={session.id} className="flex items-center gap-2 text-sm">
+                                      <span className="font-mono bg-muted px-2 py-1 rounded">
+                                        {session.id}
+                                      </span>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => copySessionLink(session.id)}
+                                      >
+                                        <Copy className="h-3 w-3 mr-1" />
+                                        Copy Link
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleCreateSession(page.id, subPage.id)}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              New Session
+                            </Button>
+                            {subPage.html && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handlePreview(subPage.html)}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Preview
+                              </Button>
+                            )}
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditSubPage(page.id, subPage)}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex space-x-2">
-                        {subPage.html && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handlePreview(subPage.html)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Preview
-                          </Button>
-                        )}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditSubPage(page.id, subPage)}
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                      </div>
-                    </div>
-                  )) || (
+                    );
+                  }) || (
                     <p className="text-muted-foreground text-sm">No sub-pages found</p>
                   )}
                 </div>
@@ -545,4 +610,4 @@ const AdminPages = () => {
   );
 };
 
-export default AdminPages;
+export default UserPages;

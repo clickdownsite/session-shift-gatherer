@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect } from 'react';
 import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
 import { supabase } from '@/integrations/supabase/client';
@@ -89,6 +90,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
           table: 'session_data'
         },
         (payload) => {
+          console.log('New session data received:', payload);
           toast("New Data Received", {
             description: `New form submission received for session`,
           });
@@ -122,12 +124,16 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }));
 
   const getMainPageById = (mainPageId: string) => {
+    console.log('Looking for main page:', mainPageId, 'in:', transformedMainPages);
     return transformedMainPages.find(page => page.id === mainPageId);
   };
 
   const getSubPageById = (mainPageId: string, subPageId: string) => {
+    console.log('Looking for sub page:', subPageId, 'in main page:', mainPageId);
     const mainPage = getMainPageById(mainPageId);
-    return mainPage?.subPages?.find(subPage => subPage.id === subPageId);
+    const subPage = mainPage?.subPages?.find(subPage => subPage.id === subPageId);
+    console.log('Found sub page:', subPage);
+    return subPage;
   };
 
   const getSessionById = (sessionId: string) => {
@@ -135,11 +141,13 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addSession = (mainPageId: string, subPageId: string) => {
+    console.log('Creating session with:', { mainPageId, subPageId });
     createSession({ mainPageId, subPageId });
   };
 
   const addSessionData = async (sessionId: string, data: any) => {
     try {
+      console.log('Adding session data:', { sessionId, data });
       const { error } = await supabase
         .from('session_data')
         .insert({
@@ -163,6 +171,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const switchSubPage = (sessionId: string, newSubPageId: string) => {
+    console.log('Switching sub page for session:', sessionId, 'to:', newSubPageId);
     updateSession({ 
       sessionId, 
       updates: { 
@@ -210,6 +219,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Updated implementations for admin features
   const updateMainPage = async (updatedPage: any) => {
     try {
+      console.log('Updating main page:', updatedPage);
       const { error } = await supabase
         .from('main_pages')
         .update({
@@ -224,11 +234,13 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       queryClient.invalidateQueries({ queryKey: ['main_pages'] });
     } catch (error) {
       console.error('Error updating main page:', error);
+      throw error;
     }
   };
 
   const updateSubPage = async (mainPageId: string, updatedSubPage: any) => {
     try {
+      console.log('Updating sub page:', updatedSubPage);
       const { error } = await supabase
         .from('sub_pages')
         .update({
@@ -245,11 +257,13 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
     } catch (error) {
       console.error('Error updating sub page:', error);
+      throw error;
     }
   };
 
-  const addMainPage = async (newPage: any) => {
+  const addMainPage = async (newPage: any): Promise<string> => {
     try {
+      console.log('Adding main page:', newPage);
       const newPageId = `page_${Date.now()}`;
       const { error } = await supabase
         .from('main_pages')
@@ -259,20 +273,24 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
           description: newPage.description
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting main page:', error);
+        throw error;
+      }
       
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['main_pages'] });
       return newPageId;
     } catch (error) {
       console.error('Error adding main page:', error);
-      return 'error';
+      throw error;
     }
   };
 
-  const addSubPage = async (mainPageId: string, newSubPage: any) => {
+  const addSubPage = async (mainPageId: string, newSubPage: any): Promise<string> => {
     try {
-      const newSubPageId = `subpage_${Date.now()}`;
+      console.log('Adding sub page:', newSubPage, 'to main page:', mainPageId);
+      const newSubPageId = `subpage_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       const { error } = await supabase
         .from('sub_pages')
         .insert({
@@ -284,19 +302,23 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
           fields: newSubPage.fields || []
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting sub page:', error);
+        throw error;
+      }
       
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
       return newSubPageId;
     } catch (error) {
       console.error('Error adding sub page:', error);
-      return 'error';
+      throw error;
     }
   };
 
   const deleteMainPage = async (mainPageId: string) => {
     try {
+      console.log('Deleting main page:', mainPageId);
       const { error } = await supabase
         .from('main_pages')
         .delete()
@@ -308,11 +330,13 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       queryClient.invalidateQueries({ queryKey: ['main_pages'] });
     } catch (error) {
       console.error('Error deleting main page:', error);
+      throw error;
     }
   };
 
   const deleteSubPage = async (mainPageId: string, subPageId: string) => {
     try {
+      console.log('Deleting sub page:', subPageId);
       const { error } = await supabase
         .from('sub_pages')
         .delete()
@@ -324,6 +348,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
     } catch (error) {
       console.error('Error deleting sub page:', error);
+      throw error;
     }
   };
 
