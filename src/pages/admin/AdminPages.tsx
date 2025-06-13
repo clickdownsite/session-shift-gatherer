@@ -3,61 +3,23 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/sonner';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, ChevronDown, ChevronRight, Eye, Code, Edit } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Edit } from 'lucide-react';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface MainPage {
-  id: string;
-  name: string;
-  description: string;
-  subPages: SubPage[];
-}
-
-interface SubPage {
-  id: string;
-  parentId: string;
-  name: string;
-  description?: string;
-  html?: string;
-  fields?: string[];
-}
-
-// Mock data for pages
-const initialPages: MainPage[] = [
-  {
-    id: 'page1',
-    name: 'Landing Page',
-    description: 'Main entry point for users',
-    subPages: [
-      { id: 'subpage1', parentId: 'page1', name: 'Welcome Screen' },
-      { id: 'subpage2', parentId: 'page1', name: 'Features Overview' }
-    ]
-  },
-  {
-    id: 'page2',
-    name: 'Authentication Page',
-    description: 'User login and registration',
-    subPages: [
-      { id: 'subpage3', parentId: 'page2', name: 'Login Form' },
-      { id: 'subpage4', parentId: 'page2', name: 'Registration Form' }
-    ]
-  }
-];
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminPages = () => {
-  const { mainPages, addMainPage, addSubPage, updateSubPage } = useSessionContext();
-  const [pages, setPages] = useState<MainPage[]>(initialPages);
+  const { mainPages } = useSessionContext();
   const [isAddingPage, setIsAddingPage] = useState(false);
   const [newPageName, setNewPageName] = useState('');
   const [newPageDescription, setNewPageDescription] = useState('');
   
   // States for SubPage editing
   const [isEditingSubPage, setIsEditingSubPage] = useState(false);
-  const [selectedSubPage, setSelectedSubPage] = useState<SubPage | null>(null);
+  const [selectedSubPage, setSelectedSubPage] = useState<any>(null);
   const [selectedMainPageId, setSelectedMainPageId] = useState<string | null>(null);
   const [editSubPageName, setEditSubPageName] = useState('');
   const [editSubPageDescription, setEditSubPageDescription] = useState('');
@@ -65,32 +27,44 @@ const AdminPages = () => {
   const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>({});
 
   // Function to add a new main page
-  const handleAddPage = () => {
+  const handleAddPage = async () => {
     if (!newPageName || !newPageDescription) {
-      toast({
-        title: "Error",
-        description: "Please provide both a name and description",
-        variant: "destructive"
+      toast.error("Error", {
+        description: "Please provide both a name and description"
       });
       return;
     }
     
-    // Create the new page with empty subPages array
-    const newPageId = addMainPage({
-      name: newPageName,
-      description: newPageDescription,
-      subPages: []
-    });
-    
-    // Reset form and show success message
-    setNewPageName('');
-    setNewPageDescription('');
-    setIsAddingPage(false);
-    
-    toast({
-      title: "Page Added",
-      description: `${newPageName} has been created successfully`
-    });
+    try {
+      const newPageId = `page_${Date.now()}`;
+      
+      const { error } = await supabase
+        .from('main_pages')
+        .insert({
+          id: newPageId,
+          name: newPageName,
+          description: newPageDescription
+        });
+
+      if (error) throw error;
+
+      // Reset form and show success message
+      setNewPageName('');
+      setNewPageDescription('');
+      setIsAddingPage(false);
+      
+      toast.success("Page Added", {
+        description: `${newPageName} has been created successfully`
+      });
+
+      // Refresh the page data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error adding page:', error);
+      toast.error("Error", {
+        description: "Failed to add page"
+      });
+    }
   };
 
   // Toggle expanded state for a page
@@ -102,7 +76,7 @@ const AdminPages = () => {
   };
 
   // Open sub page edit dialog
-  const handleEditSubPage = (mainPageId: string, subPage: SubPage) => {
+  const handleEditSubPage = (mainPageId: string, subPage: any) => {
     setSelectedMainPageId(mainPageId);
     setSelectedSubPage(subPage);
     setEditSubPageName(subPage.name || '');
@@ -112,24 +86,34 @@ const AdminPages = () => {
   };
 
   // Save sub page edits
-  const handleSaveSubPageEdits = () => {
+  const handleSaveSubPageEdits = async () => {
     if (!selectedMainPageId || !selectedSubPage) return;
     
-    const updatedSubPage = {
-      ...selectedSubPage,
-      name: editSubPageName,
-      description: editSubPageDescription,
-      html: editSubPageHtml,
-      fields: selectedSubPage.fields || [], // Ensure fields is always an array
-    };
-    
-    updateSubPage(selectedMainPageId, updatedSubPage);
-    
-    setIsEditingSubPage(false);
-    toast({
-      title: "Sub Page Updated",
-      description: `${editSubPageName} has been updated successfully`
-    });
+    try {
+      const { error } = await supabase
+        .from('sub_pages')
+        .update({
+          name: editSubPageName,
+          description: editSubPageDescription,
+          html: editSubPageHtml
+        })
+        .eq('id', selectedSubPage.id);
+
+      if (error) throw error;
+
+      setIsEditingSubPage(false);
+      toast.success("Sub Page Updated", {
+        description: `${editSubPageName} has been updated successfully`
+      });
+
+      // Refresh the page data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating sub page:', error);
+      toast.error("Error", {
+        description: "Failed to update sub page"
+      });
+    }
   };
 
   return (
@@ -202,7 +186,7 @@ const AdminPages = () => {
                   {page.name}
                 </CardTitle>
                 <span className="text-muted-foreground text-sm">
-                  {page.subPages.length} sub-pages
+                  {page.subPages?.length || 0} sub-pages
                 </span>
               </div>
               <p className="text-muted-foreground text-sm mt-1">{page.description}</p>
@@ -212,7 +196,7 @@ const AdminPages = () => {
               <CardContent>
                 <h3 className="text-sm font-medium mb-3">Sub Pages</h3>
                 <div className="space-y-3">
-                  {page.subPages.map((subPage) => (
+                  {page.subPages?.map((subPage) => (
                     <div 
                       key={subPage.id} 
                       className="p-3 border rounded-md flex justify-between items-center hover:bg-secondary/50"
@@ -234,7 +218,9 @@ const AdminPages = () => {
                         </Button>
                       </div>
                     </div>
-                  ))}
+                  )) || (
+                    <p className="text-muted-foreground text-sm">No sub-pages found</p>
+                  )}
                 </div>
               </CardContent>
             )}
@@ -273,14 +259,8 @@ const AdminPages = () => {
             
             <Tabs defaultValue="code">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="code">
-                  <Code className="h-4 w-4 mr-2" />
-                  HTML
-                </TabsTrigger>
-                <TabsTrigger value="preview">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Preview
-                </TabsTrigger>
+                <TabsTrigger value="code">HTML</TabsTrigger>
+                <TabsTrigger value="preview">Preview</TabsTrigger>
               </TabsList>
               <TabsContent value="code" className="p-0">
                 <Textarea

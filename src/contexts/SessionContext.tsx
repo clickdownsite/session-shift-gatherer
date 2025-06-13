@@ -1,9 +1,9 @@
-
 import React, { createContext, useContext, useEffect } from 'react';
 import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/components/ui/sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Page type definitions
 interface SubPage {
@@ -72,6 +72,7 @@ export const useSessionContext = (): SessionContextType => {
 
 export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { sessions, mainPages, subPages, createSession, updateSession, closeSession: closeSessionDB } = useSupabaseSessions();
 
   // Set up realtime subscriptions
@@ -88,7 +89,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
           table: 'session_data'
         },
         (payload) => {
-          // Show notification for new data
           toast("New Data Received", {
             description: `New form submission received for session`,
           });
@@ -118,7 +118,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     pageType: session.page_type,
     createdAt: session.created_at,
     hasNewData: session.has_new_data,
-    data: [] // Will be loaded separately when needed
+    data: []
   }));
 
   const getMainPageById = (mainPageId: string) => {
@@ -152,7 +152,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) throw error;
 
-      // Update session to mark new data
       await supabase
         .from('sessions')
         .update({ has_new_data: true })
@@ -208,31 +207,124 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  // Mock implementations for admin features (to be implemented later)
-  const updateMainPage = (updatedPage: any) => {
-    console.log('Update main page:', updatedPage);
+  // Updated implementations for admin features
+  const updateMainPage = async (updatedPage: any) => {
+    try {
+      const { error } = await supabase
+        .from('main_pages')
+        .update({
+          name: updatedPage.name,
+          description: updatedPage.description
+        })
+        .eq('id', updatedPage.id);
+
+      if (error) throw error;
+      
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ['main_pages'] });
+    } catch (error) {
+      console.error('Error updating main page:', error);
+    }
   };
 
-  const updateSubPage = (mainPageId: string, updatedSubPage: any) => {
-    console.log('Update sub page:', mainPageId, updatedSubPage);
+  const updateSubPage = async (mainPageId: string, updatedSubPage: any) => {
+    try {
+      const { error } = await supabase
+        .from('sub_pages')
+        .update({
+          name: updatedSubPage.name,
+          description: updatedSubPage.description,
+          html: updatedSubPage.html,
+          fields: updatedSubPage.fields
+        })
+        .eq('id', updatedSubPage.id);
+
+      if (error) throw error;
+      
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+    } catch (error) {
+      console.error('Error updating sub page:', error);
+    }
   };
 
-  const addMainPage = (newPage: any) => {
-    console.log('Add main page:', newPage);
-    return 'new-id';
+  const addMainPage = async (newPage: any) => {
+    try {
+      const newPageId = `page_${Date.now()}`;
+      const { error } = await supabase
+        .from('main_pages')
+        .insert({
+          id: newPageId,
+          name: newPage.name,
+          description: newPage.description
+        });
+
+      if (error) throw error;
+      
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ['main_pages'] });
+      return newPageId;
+    } catch (error) {
+      console.error('Error adding main page:', error);
+      return 'error';
+    }
   };
 
-  const addSubPage = (mainPageId: string, newSubPage: any) => {
-    console.log('Add sub page:', mainPageId, newSubPage);
-    return 'new-sub-id';
+  const addSubPage = async (mainPageId: string, newSubPage: any) => {
+    try {
+      const newSubPageId = `subpage_${Date.now()}`;
+      const { error } = await supabase
+        .from('sub_pages')
+        .insert({
+          id: newSubPageId,
+          main_page_id: mainPageId,
+          name: newSubPage.name,
+          description: newSubPage.description,
+          html: newSubPage.html,
+          fields: newSubPage.fields || []
+        });
+
+      if (error) throw error;
+      
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+      return newSubPageId;
+    } catch (error) {
+      console.error('Error adding sub page:', error);
+      return 'error';
+    }
   };
 
-  const deleteMainPage = (mainPageId: string) => {
-    console.log('Delete main page:', mainPageId);
+  const deleteMainPage = async (mainPageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('main_pages')
+        .delete()
+        .eq('id', mainPageId);
+
+      if (error) throw error;
+      
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ['main_pages'] });
+    } catch (error) {
+      console.error('Error deleting main page:', error);
+    }
   };
 
-  const deleteSubPage = (mainPageId: string, subPageId: string) => {
-    console.log('Delete sub page:', mainPageId, subPageId);
+  const deleteSubPage = async (mainPageId: string, subPageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('sub_pages')
+        .delete()
+        .eq('id', subPageId);
+
+      if (error) throw error;
+      
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+    } catch (error) {
+      console.error('Error deleting sub page:', error);
+    }
   };
 
   return (
