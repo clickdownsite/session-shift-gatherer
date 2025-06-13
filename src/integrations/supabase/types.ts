@@ -131,30 +131,36 @@ export type Database = {
       sub_pages: {
         Row: {
           created_at: string | null
+          css: string | null
           description: string | null
           fields: string[] | null
           html: string | null
           id: string
+          javascript: string | null
           main_page_id: string | null
           name: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          css?: string | null
           description?: string | null
           fields?: string[] | null
           html?: string | null
           id: string
+          javascript?: string | null
           main_page_id?: string | null
           name: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          css?: string | null
           description?: string | null
           fields?: string[] | null
           html?: string | null
           id?: string
+          javascript?: string | null
           main_page_id?: string | null
           name?: string
           updated_at?: string | null

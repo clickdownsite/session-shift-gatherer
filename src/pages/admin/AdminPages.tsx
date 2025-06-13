@@ -1,594 +1,545 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/sonner';
-import { Textarea } from '@/components/ui/textarea';
-import { Plus, ChevronDown, ChevronRight, Edit, Trash2, Eye, Upload } from 'lucide-react';
-import { useSessionContext } from '@/contexts/SessionContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { FileUpload } from '@/components/FileUpload';
+import { Plus, Edit, Trash2, Eye } from 'lucide-react';
+import { useSessionContext } from '@/contexts/SessionContext';
+import { toast } from '@/components/ui/sonner';
+import FileUpload from '@/components/FileUpload';
 
 const AdminPages = () => {
-  const { mainPages, updateMainPage, updateSubPage, addMainPage, addSubPage, deleteMainPage, deleteSubPage } = useSessionContext();
-  const [isAddingPage, setIsAddingPage] = useState(false);
-  const [newPageName, setNewPageName] = useState('');
-  const [newPageDescription, setNewPageDescription] = useState('');
-  const [newSubPages, setNewSubPages] = useState([{
-    name: '',
-    description: '',
-    html: '',
-    css: '',
-    javascript: '',
-    fields: []
-  }]);
-  
-  // States for SubPage editing
-  const [isEditingSubPage, setIsEditingSubPage] = useState(false);
-  const [selectedSubPage, setSelectedSubPage] = useState<any>(null);
-  const [selectedMainPageId, setSelectedMainPageId] = useState<string | null>(null);
-  const [editSubPageName, setEditSubPageName] = useState('');
-  const [editSubPageDescription, setEditSubPageDescription] = useState('');
-  const [editSubPageHtml, setEditSubPageHtml] = useState('');
-  const [editSubPageCss, setEditSubPageCss] = useState('');
-  const [editSubPageJavascript, setEditSubPageJavascript] = useState('');
-  const [editSubPageFields, setEditSubPageFields] = useState<string[]>([]);
-  const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>({});
+  const {
+    mainPages,
+    addMainPage,
+    addSubPage,
+    updateMainPage,
+    updateSubPage,
+    deleteMainPage,
+    deleteSubPage
+  } = useSessionContext();
 
-  // Preview states
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSubPageDialogOpen, setIsSubPageDialogOpen] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [selectedMainPage, setSelectedMainPage] = useState<any>(null);
+  const [selectedSubPage, setSelectedSubPage] = useState<any>(null);
   const [previewContent, setPreviewContent] = useState({ html: '', css: '', javascript: '' });
 
-  // Function to add a new main page with sub pages
-  const handleAddPage = async () => {
-    if (!newPageName || !newPageDescription) {
-      toast.error("Error", {
-        description: "Please provide both a name and description"
-      });
+  // Form states
+  const [mainPageForm, setMainPageForm] = useState({
+    name: '',
+    description: ''
+  });
+
+  const [subPageForm, setSubPageForm] = useState({
+    name: '',
+    description: '',
+    fields: [] as string[],
+    html: '',
+    css: '',
+    javascript: ''
+  });
+
+  const [fieldInput, setFieldInput] = useState('');
+
+  const resetMainPageForm = () => {
+    setMainPageForm({ name: '', description: '' });
+  };
+
+  const resetSubPageForm = () => {
+    setSubPageForm({
+      name: '',
+      description: '',
+      fields: [],
+      html: '',
+      css: '',
+      javascript: ''
+    });
+    setFieldInput('');
+  };
+
+  const handleCreateMainPage = async () => {
+    if (!mainPageForm.name.trim()) {
+      toast.error('Please enter a page name');
       return;
     }
 
-    if (newSubPages.some(sp => !sp.name)) {
-      toast.error("Error", {
-        description: "All sub pages must have a name"
-      });
-      return;
-    }
-    
     try {
-      console.log('Adding main page:', { newPageName, newPageDescription });
-      const mainPageId = await addMainPage({
-        name: newPageName,
-        description: newPageDescription
-      });
-
-      console.log('Main page created with ID:', mainPageId);
-
-      // Add sub pages
-      for (const subPage of newSubPages) {
-        if (subPage.name) {
-          console.log('Adding sub page:', subPage);
-          const subPageId = await addSubPage(mainPageId, {
-            name: subPage.name,
-            description: subPage.description,
-            html: subPage.html,
-            css: subPage.css,
-            javascript: subPage.javascript,
-            fields: subPage.fields
-          });
-          console.log('Sub page created with ID:', subPageId);
-        }
-      }
-
-      // Reset form and show success message
-      setNewPageName('');
-      setNewPageDescription('');
-      setNewSubPages([{ name: '', description: '', html: '', css: '', javascript: '', fields: [] }]);
-      setIsAddingPage(false);
-      
-      toast.success("Page Added", {
-        description: `${newPageName} has been created successfully with ${newSubPages.filter(sp => sp.name).length} sub-pages`
-      });
-
-      // Refresh the page data
-      window.location.reload();
+      await addMainPage(mainPageForm);
+      resetMainPageForm();
+      setIsCreateDialogOpen(false);
     } catch (error) {
-      console.error('Error adding page:', error);
-      toast.error("Error", {
-        description: "Failed to add page: " + (error as Error).message
-      });
+      console.error('Error creating main page:', error);
     }
   };
 
-  // Toggle expanded state for a page
-  const toggleExpandPage = (pageId: string) => {
-    setExpandedPages(prev => ({
+  const handleUpdateMainPage = async () => {
+    if (!selectedMainPage || !mainPageForm.name.trim()) {
+      toast.error('Please enter a page name');
+      return;
+    }
+
+    try {
+      await updateMainPage({
+        ...selectedMainPage,
+        ...mainPageForm
+      });
+      resetMainPageForm();
+      setIsEditDialogOpen(false);
+      setSelectedMainPage(null);
+    } catch (error) {
+      console.error('Error updating main page:', error);
+    }
+  };
+
+  const handleDeleteMainPage = async (mainPageId: string) => {
+    if (!confirm('Are you sure you want to delete this page and all its sub-pages?')) return;
+
+    try {
+      await deleteMainPage(mainPageId);
+    } catch (error) {
+      console.error('Error deleting main page:', error);
+    }
+  };
+
+  const handleAddField = () => {
+    if (fieldInput.trim() && !subPageForm.fields.includes(fieldInput.trim())) {
+      setSubPageForm(prev => ({
+        ...prev,
+        fields: [...prev.fields, fieldInput.trim()]
+      }));
+      setFieldInput('');
+    }
+  };
+
+  const handleRemoveField = (field: string) => {
+    setSubPageForm(prev => ({
       ...prev,
-      [pageId]: !prev[pageId]
+      fields: prev.fields.filter(f => f !== field)
     }));
   };
 
-  // Open sub page edit dialog
-  const handleEditSubPage = (mainPageId: string, subPage: any) => {
-    console.log('Editing sub page:', subPage);
-    setSelectedMainPageId(mainPageId);
-    setSelectedSubPage(subPage);
-    setEditSubPageName(subPage.name || '');
-    setEditSubPageDescription(subPage.description || '');
-    setEditSubPageHtml(subPage.html || '');
-    setEditSubPageCss(subPage.css || '');
-    setEditSubPageJavascript(subPage.javascript || '');
-    setEditSubPageFields(subPage.fields || []);
-    setIsEditingSubPage(true);
+  const handleCreateSubPage = async () => {
+    if (!selectedMainPage || !subPageForm.name.trim()) {
+      toast.error('Please enter a sub-page name');
+      return;
+    }
+
+    try {
+      await addSubPage(selectedMainPage.id, subPageForm);
+      resetSubPageForm();
+      setIsSubPageDialogOpen(false);
+    } catch (error) {
+      console.error('Error creating sub page:', error);
+    }
   };
 
-  // Save sub page edits
-  const handleSaveSubPageEdits = async () => {
-    if (!selectedMainPageId || !selectedSubPage) return;
-    
+  const handleUpdateSubPage = async () => {
+    if (!selectedMainPage || !selectedSubPage || !subPageForm.name.trim()) {
+      toast.error('Please enter a sub-page name');
+      return;
+    }
+
     try {
-      console.log('Saving sub page edits:', {
-        name: editSubPageName,
-        description: editSubPageDescription,
-        html: editSubPageHtml,
-        css: editSubPageCss,
-        javascript: editSubPageJavascript,
-        fields: editSubPageFields
+      await updateSubPage(selectedMainPage.id, {
+        ...selectedSubPage,
+        ...subPageForm
       });
-
-      await updateSubPage(selectedMainPageId, {
-        id: selectedSubPage.id,
-        name: editSubPageName,
-        description: editSubPageDescription,
-        html: editSubPageHtml,
-        css: editSubPageCss,
-        javascript: editSubPageJavascript,
-        fields: editSubPageFields
-      });
-
-      setIsEditingSubPage(false);
-      toast.success("Sub Page Updated", {
-        description: `${editSubPageName} has been updated successfully`
-      });
-
-      // Refresh the page data
-      window.location.reload();
+      resetSubPageForm();
+      setIsSubPageDialogOpen(false);
+      setSelectedSubPage(null);
     } catch (error) {
       console.error('Error updating sub page:', error);
-      toast.error("Error", {
-        description: "Failed to update sub page: " + (error as Error).message
-      });
     }
   };
 
-  // Add new sub page to form
-  const addNewSubPageToForm = () => {
-    setNewSubPages([...newSubPages, { name: '', description: '', html: '', css: '', javascript: '', fields: [] }]);
-  };
+  const handleDeleteSubPage = async (mainPageId: string, subPageId: string) => {
+    if (!confirm('Are you sure you want to delete this sub-page?')) return;
 
-  // Remove sub page from form
-  const removeSubPageFromForm = (index: number) => {
-    setNewSubPages(newSubPages.filter((_, i) => i !== index));
-  };
-
-  // Update sub page in form
-  const updateSubPageInForm = (index: number, field: string, value: any) => {
-    const updated = [...newSubPages];
-    updated[index] = { ...updated[index], [field]: value };
-    setNewSubPages(updated);
-  };
-
-  // Add field to sub page
-  const addFieldToSubPage = (index: number) => {
-    const updated = [...newSubPages];
-    const fieldName = prompt('Enter field name:');
-    if (fieldName) {
-      updated[index].fields = [...updated[index].fields, fieldName];
-      setNewSubPages(updated);
+    try {
+      await deleteSubPage(mainPageId, subPageId);
+    } catch (error) {
+      console.error('Error deleting sub page:', error);
     }
   };
 
-  // Remove field from sub page
-  const removeFieldFromSubPage = (subPageIndex: number, fieldIndex: number) => {
-    const updated = [...newSubPages];
-    updated[subPageIndex].fields = updated[subPageIndex].fields.filter((_, i) => i !== fieldIndex);
-    setNewSubPages(updated);
+  const handleFileUpload = (content: string, type: 'html' | 'css' | 'javascript') => {
+    setSubPageForm(prev => ({
+      ...prev,
+      [type]: content
+    }));
   };
 
-  // Add field to edit form
-  const addFieldToEdit = () => {
-    const fieldName = prompt('Enter field name:');
-    if (fieldName) {
-      setEditSubPageFields([...editSubPageFields, fieldName]);
-    }
+  const handlePreview = (subPage: any) => {
+    setPreviewContent({
+      html: subPage.html || '',
+      css: subPage.css || '',
+      javascript: subPage.javascript || ''
+    });
+    setIsPreviewDialogOpen(true);
   };
 
-  // Remove field from edit form
-  const removeFieldFromEdit = (index: number) => {
-    setEditSubPageFields(editSubPageFields.filter((_, i) => i !== index));
+  const openEditMainPage = (mainPage: any) => {
+    setSelectedMainPage(mainPage);
+    setMainPageForm({
+      name: mainPage.name,
+      description: mainPage.description || ''
+    });
+    setIsEditDialogOpen(true);
   };
 
-  // Preview content
-  const handlePreview = (html: string, css: string = '', javascript: string = '') => {
-    setPreviewContent({ html, css, javascript });
-    setIsPreviewOpen(true);
+  const openCreateSubPage = (mainPage: any) => {
+    setSelectedMainPage(mainPage);
+    resetSubPageForm();
+    setIsSubPageDialogOpen(true);
   };
 
-  // File upload handlers
-  const handleFileUpload = (content: string, type: 'html' | 'css' | 'javascript', subPageIndex: number) => {
-    const updated = [...newSubPages];
-    updated[subPageIndex] = { ...updated[subPageIndex], [type]: content };
-    setNewSubPages(updated);
-  };
-
-  const handleEditFileUpload = (content: string, type: 'html' | 'css' | 'javascript') => {
-    if (type === 'html') setEditSubPageHtml(content);
-    if (type === 'css') setEditSubPageCss(content);
-    if (type === 'javascript') setEditSubPageJavascript(content);
+  const openEditSubPage = (mainPage: any, subPage: any) => {
+    setSelectedMainPage(mainPage);
+    setSelectedSubPage(subPage);
+    setSubPageForm({
+      name: subPage.name,
+      description: subPage.description || '',
+      fields: subPage.fields || [],
+      html: subPage.html || '',
+      css: subPage.css || '',
+      javascript: subPage.javascript || ''
+    });
+    setIsSubPageDialogOpen(true);
   };
 
   return (
-    <div className="container mx-auto animate-fade-in">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Page Management</h1>
-          <p className="text-muted-foreground">Create and manage website pages with HTML, CSS, and JavaScript</p>
-        </div>
-        <Button onClick={() => setIsAddingPage(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Page
-        </Button>
-      </div>
-
-      {isAddingPage && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Add New Page</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-6">
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Page Management</h1>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Page
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Main Page</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
               <div>
-                <Label htmlFor="pageName">Page Name</Label>
+                <Label htmlFor="name">Page Name</Label>
                 <Input
-                  id="pageName"
-                  value={newPageName}
-                  onChange={(e) => setNewPageName(e.target.value)}
+                  id="name"
+                  value={mainPageForm.name}
+                  onChange={(e) => setMainPageForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Enter page name"
                 />
               </div>
               <div>
-                <Label htmlFor="pageDescription">Description</Label>
+                <Label htmlFor="description">Description</Label>
                 <Textarea
-                  id="pageDescription"
-                  value={newPageDescription}
-                  onChange={(e) => setNewPageDescription(e.target.value)}
+                  id="description"
+                  value={mainPageForm.description}
+                  onChange={(e) => setMainPageForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Enter page description"
-                  rows={3}
                 />
               </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Sub Pages</h3>
-                  <Button type="button" onClick={() => setNewSubPages([...newSubPages, { name: '', description: '', html: '', css: '', javascript: '', fields: [] }])} variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Sub Page
-                  </Button>
-                </div>
-
-                {newSubPages.map((subPage, index) => (
-                  <Card key={index} className="mb-4">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-center">
-                        <CardTitle className="text-base">Sub Page {index + 1}</CardTitle>
-                        {newSubPages.length > 1 && (
-                          <Button
-                            type="button"
-                            onClick={() => setNewSubPages(newSubPages.filter((_, i) => i !== index))}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <Label>Sub Page Name</Label>
-                        <Input
-                          value={subPage.name}
-                          onChange={(e) => {
-                            const updated = [...newSubPages];
-                            updated[index] = { ...updated[index], name: e.target.value };
-                            setNewSubPages(updated);
-                          }}
-                          placeholder="Enter sub page name"
-                        />
-                      </div>
-                      <div>
-                        <Label>Description</Label>
-                        <Textarea
-                          value={subPage.description}
-                          onChange={(e) => {
-                            const updated = [...newSubPages];
-                            updated[index] = { ...updated[index], description: e.target.value };
-                            setNewSubPages(updated);
-                          }}
-                          placeholder="Enter sub page description"
-                          rows={2}
-                        />
-                      </div>
-                      
-                      <FileUpload
-                        onFileContent={(content, type) => handleFileUpload(content, type, index)}
-                        acceptedTypes={['html', 'css', 'javascript']}
-                        className="mb-4"
-                      />
-
-                      <Tabs defaultValue="html">
-                        <TabsList className="grid w-full grid-cols-3">
-                          <TabsTrigger value="html">HTML</TabsTrigger>
-                          <TabsTrigger value="css">CSS</TabsTrigger>
-                          <TabsTrigger value="javascript">JavaScript</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="html" className="p-0">
-                          <Textarea
-                            value={subPage.html}
-                            onChange={(e) => {
-                              const updated = [...newSubPages];
-                              updated[index] = { ...updated[index], html: e.target.value };
-                              setNewSubPages(updated);
-                            }}
-                            placeholder="<div>HTML content goes here</div>"
-                            className="font-mono text-sm"
-                            rows={6}
-                          />
-                        </TabsContent>
-                        <TabsContent value="css" className="p-0">
-                          <Textarea
-                            value={subPage.css}
-                            onChange={(e) => {
-                              const updated = [...newSubPages];
-                              updated[index] = { ...updated[index], css: e.target.value };
-                              setNewSubPages(updated);
-                            }}
-                            placeholder="/* CSS styles go here */"
-                            className="font-mono text-sm"
-                            rows={6}
-                          />
-                        </TabsContent>
-                        <TabsContent value="javascript" className="p-0">
-                          <Textarea
-                            value={subPage.javascript}
-                            onChange={(e) => {
-                              const updated = [...newSubPages];
-                              updated[index] = { ...updated[index], javascript: e.target.value };
-                              setNewSubPages(updated);
-                            }}
-                            placeholder="// JavaScript code goes here"
-                            className="font-mono text-sm"
-                            rows={6}
-                          />
-                        </TabsContent>
-                      </Tabs>
-
-                      <div className="flex justify-between items-center">
-                        <Button
-                          type="button"
-                          onClick={() => handlePreview(subPage.html, subPage.css, subPage.javascript)}
-                          variant="outline"
-                          size="sm"
-                          disabled={!subPage.html}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Preview
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsAddingPage(false)}>
+              <div className="flex gap-2">
+                <Button onClick={handleCreateMainPage}>Create Page</Button>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancel
-                </Button>
-                <Button onClick={handleAddPage}>
-                  Create Page
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <div className="space-y-4">
-        {mainPages.map((page) => (
-          <Card key={page.id} className="overflow-hidden">
-            <CardHeader className="cursor-pointer" onClick={() => toggleExpandPage(page.id)}>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center">
-                  {expandedPages[page.id] ? (
-                    <ChevronDown className="mr-2 h-5 w-5" />
-                  ) : (
-                    <ChevronRight className="mr-2 h-5 w-5" />
-                  )}
-                  {page.name}
-                </CardTitle>
-                <span className="text-muted-foreground text-sm">
-                  {page.subPages?.length || 0} sub-pages
-                </span>
-              </div>
-              <p className="text-muted-foreground text-sm mt-1">{page.description}</p>
-            </CardHeader>
-            
-            {expandedPages[page.id] && (
-              <CardContent>
-                <h3 className="text-sm font-medium mb-3">Sub Pages</h3>
-                <div className="space-y-3">
-                  {page.subPages?.map((subPage) => (
-                    <div 
-                      key={subPage.id} 
-                      className="p-3 border rounded-md flex justify-between items-center hover:bg-secondary/50"
-                    >
-                      <div className="flex-1">
-                        <h4 className="font-medium">{subPage.name}</h4>
-                        {subPage.description && (
-                          <p className="text-sm text-muted-foreground">{subPage.description}</p>
-                        )}
-                        {subPage.fields && subPage.fields.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {subPage.fields.map((field, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {field}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex space-x-2">
-                        {subPage.html && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handlePreview(subPage.html)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Preview
-                          </Button>
-                        )}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditSubPage(page.id, subPage)}
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                      </div>
-                    </div>
-                  )) || (
-                    <p className="text-muted-foreground text-sm">No sub-pages found</p>
+        {mainPages.map((mainPage) => (
+          <Card key={mainPage.id}>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-xl">{mainPage.name}</CardTitle>
+                  {mainPage.description && (
+                    <p className="text-muted-foreground mt-1">{mainPage.description}</p>
                   )}
                 </div>
-              </CardContent>
-            )}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => openEditMainPage(mainPage)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => openCreateSubPage(mainPage)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => handleDeleteMainPage(mainPage.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <h4 className="font-semibold">Sub Pages ({mainPage.subPages?.length || 0})</h4>
+                <div className="grid gap-4">
+                  {mainPage.subPages?.map((subPage: any) => (
+                    <Card key={subPage.id} className="border-l-4 border-l-blue-500">
+                      <CardContent className="pt-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h5 className="font-medium">{subPage.name}</h5>
+                            {subPage.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{subPage.description}</p>
+                            )}
+                            {subPage.fields && subPage.fields.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-sm font-medium">Form Fields:</p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {subPage.fields.map((field: string) => (
+                                    <Badge key={field} variant="secondary" className="text-xs">
+                                      {field}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handlePreview(subPage)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => openEditSubPage(mainPage, subPage)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleDeleteSubPage(mainPage.id, subPage.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )) || (
+                    <p className="text-muted-foreground text-center py-4">
+                      No sub-pages yet. Click the + button to add one.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Sub Page Edit Dialog */}
-      <Dialog open={isEditingSubPage} onOpenChange={setIsEditingSubPage}>
-        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+      {/* Edit Main Page Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Sub Page: {selectedSubPage?.name}</DialogTitle>
-            <DialogDescription>
-              Modify the sub page content, files, and structure.
-            </DialogDescription>
+            <DialogTitle>Edit Main Page</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="space-y-4">
             <div>
-              <Label htmlFor="subPageName">Name</Label>
+              <Label htmlFor="edit-name">Page Name</Label>
               <Input
-                id="subPageName"
-                value={editSubPageName}
-                onChange={(e) => setEditSubPageName(e.target.value)}
-                placeholder="Sub Page Name"
-                className="mt-1"
+                id="edit-name"
+                value={mainPageForm.name}
+                onChange={(e) => setMainPageForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter page name"
               />
             </div>
             <div>
-              <Label htmlFor="subPageDescription">Description</Label>
+              <Label htmlFor="edit-description">Description</Label>
               <Textarea
-                id="subPageDescription"
-                value={editSubPageDescription}
-                onChange={(e) => setEditSubPageDescription(e.target.value)}
-                placeholder="Sub Page Description"
-                rows={2}
-                className="mt-1"
+                id="edit-description"
+                value={mainPageForm.description}
+                onChange={(e) => setMainPageForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter page description"
               />
             </div>
-            
-            <FileUpload
-              onFileContent={handleEditFileUpload}
-              acceptedTypes={['html', 'css', 'javascript']}
-              className="mb-4"
-            />
-            
-            <Tabs defaultValue="html">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="html">HTML</TabsTrigger>
-                <TabsTrigger value="css">CSS</TabsTrigger>
-                <TabsTrigger value="javascript">JavaScript</TabsTrigger>
-                <TabsTrigger value="preview">Preview</TabsTrigger>
-              </TabsList>
-              <TabsContent value="html" className="p-0">
-                <Textarea
-                  value={editSubPageHtml}
-                  onChange={(e) => setEditSubPageHtml(e.target.value)}
-                  placeholder="<div>HTML content goes here</div>"
-                  className="font-mono text-sm h-[300px]"
-                />
-              </TabsContent>
-              <TabsContent value="css" className="p-0">
-                <Textarea
-                  value={editSubPageCss}
-                  onChange={(e) => setEditSubPageCss(e.target.value)}
-                  placeholder="/* CSS styles go here */"
-                  className="font-mono text-sm h-[300px]"
-                />
-              </TabsContent>
-              <TabsContent value="javascript" className="p-0">
-                <Textarea
-                  value={editSubPageJavascript}
-                  onChange={(e) => setEditSubPageJavascript(e.target.value)}
-                  placeholder="// JavaScript code goes here"
-                  className="font-mono text-sm h-[300px]"
-                />
-              </TabsContent>
-              <TabsContent value="preview" className="bg-white border h-[300px] overflow-auto">
-                <div>
-                  <style dangerouslySetInnerHTML={{ __html: editSubPageCss }} />
-                  <div dangerouslySetInnerHTML={{ __html: editSubPageHtml }} />
-                  <script dangerouslySetInnerHTML={{ __html: editSubPageJavascript }} />
-                </div>
-              </TabsContent>
-            </Tabs>
+            <div className="flex gap-2">
+              <Button onClick={handleUpdateMainPage}>Update Page</Button>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditingSubPage(false)}>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create/Edit Sub Page Dialog */}
+      <Dialog open={isSubPageDialogOpen} onOpenChange={setIsSubPageDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedSubPage ? 'Edit Sub Page' : 'Create New Sub Page'}
+            </DialogTitle>
+          </DialogHeader>
+          <Tabs defaultValue="basic" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="fields">Form Fields</TabsTrigger>
+              <TabsTrigger value="content">Content</TabsTrigger>
+              <TabsTrigger value="preview">Preview</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="basic" className="space-y-4">
+              <div>
+                <Label htmlFor="sub-name">Sub Page Name</Label>
+                <Input
+                  id="sub-name"
+                  value={subPageForm.name}
+                  onChange={(e) => setSubPageForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter sub page name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="sub-description">Description</Label>
+                <Textarea
+                  id="sub-description"
+                  value={subPageForm.description}
+                  onChange={(e) => setSubPageForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter sub page description"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="fields" className="space-y-4">
+              <div>
+                <Label>Form Fields</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    value={fieldInput}
+                    onChange={(e) => setFieldInput(e.target.value)}
+                    placeholder="Enter field name (e.g., email, password)"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddField()}
+                  />
+                  <Button onClick={handleAddField}>Add Field</Button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {subPageForm.fields.map((field) => (
+                    <Badge key={field} variant="secondary" className="cursor-pointer">
+                      {field}
+                      <button
+                        onClick={() => handleRemoveField(field)}
+                        className="ml-2 hover:text-destructive"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="content" className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <Label htmlFor="html">HTML Content</Label>
+                    <FileUpload
+                      onFileUpload={handleFileUpload}
+                      acceptedTypes={['html']}
+                      className="text-xs"
+                    />
+                  </div>
+                  <Textarea
+                    id="html"
+                    value={subPageForm.html}
+                    onChange={(e) => setSubPageForm(prev => ({ ...prev, html: e.target.value }))}
+                    placeholder="Enter HTML content"
+                    className="font-mono text-sm min-h-[200px]"
+                  />
+                </div>
+                
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <Label htmlFor="css">CSS Styles</Label>
+                    <FileUpload
+                      onFileUpload={handleFileUpload}
+                      acceptedTypes={['css']}
+                      className="text-xs"
+                    />
+                  </div>
+                  <Textarea
+                    id="css"
+                    value={subPageForm.css}
+                    onChange={(e) => setSubPageForm(prev => ({ ...prev, css: e.target.value }))}
+                    placeholder="Enter CSS styles"
+                    className="font-mono text-sm min-h-[150px]"
+                  />
+                </div>
+                
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <Label htmlFor="javascript">JavaScript</Label>
+                    <FileUpload
+                      onFileUpload={handleFileUpload}
+                      acceptedTypes={['javascript']}
+                      className="text-xs"
+                    />
+                  </div>
+                  <Textarea
+                    id="javascript"
+                    value={subPageForm.javascript}
+                    onChange={(e) => setSubPageForm(prev => ({ ...prev, javascript: e.target.value }))}
+                    placeholder="Enter JavaScript code"
+                    className="font-mono text-sm min-h-[150px]"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="preview" className="space-y-4">
+              <div className="border rounded-lg p-4 min-h-[400px] bg-white">
+                <style dangerouslySetInnerHTML={{ __html: subPageForm.css }} />
+                <div dangerouslySetInnerHTML={{ __html: subPageForm.html }} />
+                <script dangerouslySetInnerHTML={{ __html: subPageForm.javascript }} />
+              </div>
+            </TabsContent>
+          </Tabs>
+          
+          <div className="flex gap-2 mt-6">
+            <Button onClick={selectedSubPage ? handleUpdateSubPage : handleCreateSubPage}>
+              {selectedSubPage ? 'Update Sub Page' : 'Create Sub Page'}
+            </Button>
+            <Button variant="outline" onClick={() => setIsSubPageDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveSubPageEdits}>
-              Save Changes
-            </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Preview Dialog */}
-      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh]">
+      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Page Preview</DialogTitle>
-            <DialogDescription>
-              Preview of how the page will appear to users.
-            </DialogDescription>
+            <DialogTitle>Preview</DialogTitle>
           </DialogHeader>
-          <div className="bg-white border rounded-md max-h-[500px] overflow-auto">
+          <div className="border rounded-lg p-4 min-h-[500px] bg-white overflow-auto">
             <style dangerouslySetInnerHTML={{ __html: previewContent.css }} />
             <div dangerouslySetInnerHTML={{ __html: previewContent.html }} />
             <script dangerouslySetInnerHTML={{ __html: previewContent.javascript }} />
           </div>
-          <DialogFooter>
-            <Button onClick={() => setIsPreviewOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

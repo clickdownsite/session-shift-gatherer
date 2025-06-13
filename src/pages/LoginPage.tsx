@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,7 +66,7 @@ const LoginPage = () => {
         console.log('Main page data found:', mainPageData);
         setMainPage(mainPageData);
 
-        // Get sub page data
+        // Get sub page data with CSS and JavaScript
         const { data: subPageData, error: subPageError } = await supabase
           .from('sub_pages')
           .select('*')
@@ -111,7 +110,7 @@ const LoginPage = () => {
           console.log('Session updated, fetching new sub page:', updatedSession.current_sub_page_id);
           setSession(updatedSession);
           
-          // Fetch new sub page data
+          // Fetch new sub page data with CSS and JavaScript
           const { data: newSubPageData, error: subPageError } = await supabase
             .from('sub_pages')
             .select('*')
