@@ -1,4 +1,3 @@
-
 import React, { useState, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -9,6 +8,8 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
 import { Skeleton } from '@/components/ui/skeleton';
+import CreateSessionSkeleton from '@/components/session/CreateSessionSkeleton';
+import SessionSettings from '@/components/session/SessionSettings';
 
 function SessionSettings({ sessionOptions, handleOptionChange }: any) {
   return (
@@ -117,31 +118,7 @@ const CreateSessionForm = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="container mx-auto max-w-3xl animate-fade-in py-8">
-        <h1 className="text-3xl font-bold mb-8">Create New Session</h1>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-64 mt-2" />
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-end gap-3">
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-32" />
-          </CardFooter>
-        </Card>
-      </div>
-    );
+    return <CreateSessionSkeleton />;
   }
 
   return (
@@ -213,27 +190,9 @@ const CreateSessionForm = () => {
 };
 
 const CreateSession = () => (
-  <Suspense fallback={
-    <div className="container mx-auto max-w-3xl animate-fade-in py-8">
-      <h1 className="text-3xl font-bold mb-8">Create New Session</h1>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-64 mt-2" />
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </CardContent>
-        <CardFooter className="flex justify-end gap-3">
-          <Skeleton className="h-10 w-24" />
-          <Skeleton className="h-10 w-32" />
-        </CardFooter>
-      </Card>
-    </div>
-  }>
+  <React.Suspense fallback={<CreateSessionSkeleton />}>
     <CreateSessionForm />
-  </Suspense>
+  </React.Suspense>
 );
 
 export default CreateSession;
