@@ -3,9 +3,6 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/ui/sonner';
 
 interface MainPageData {
@@ -30,7 +27,6 @@ const SessionPage = () => {
   const [mainPage, setMainPage] = useState<MainPageData | null>(null);
   const [currentSubPage, setCurrentSubPage] = useState<SubPageData | null>(null);
   const [subPages, setSubPages] = useState<SubPageData[]>([]);
-  const [formData, setFormData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -127,50 +123,47 @@ const SessionPage = () => {
     }
   }, [currentSubPage?.javascript]);
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  useEffect(() => {
+    if (!sessionId) return;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!sessionId || !formData || Object.keys(formData).length === 0) {
-      toast.error('Please fill in at least one field');
-      return;
-    }
+    // @ts-ignore
+    window.submitSessionData = async (formDataToSubmit: Record<string, string>) => {
+      if (!formDataToSubmit || Object.keys(formDataToSubmit).length === 0) {
+        toast.error('No data provided to submit.');
+        return;
+      }
 
-    try {
-      console.log('Submitting form data:', formData);
+      try {
+        console.log('Submitting form data from custom script:', formDataToSubmit);
 
-      const { error } = await supabase
-        .from('session_data')
-        .insert({
+        const { error } = await supabase.from('session_data').insert({
           session_id: sessionId,
+          form_data: formDataToSubmit,
           timestamp: new Date().toISOString(),
           ip_address: 'Unknown IP',
           location: 'Unknown Location',
-          form_data: formData
         });
 
-      if (error) {
-        console.error('Error inserting session data:', error);
-        throw error;
-      }
+        if (error) {
+          console.error('Error inserting session data:', error);
+          throw error;
+        }
 
-      toast.success('Data submitted successfully!');
-      setFormData({});
-    } catch (error) {
-      console.error('Error submitting data:', error);
-      toast.error('Failed to submit data. Please try again.');
-    }
-  };
+        toast.success('Data submitted successfully!');
+      } catch (error) {
+        console.error('Error submitting data:', error);
+        toast.error('Failed to submit data. Please try again.');
+      }
+    };
+
+    return () => {
+      // @ts-ignore
+      delete window.submitSessionData;
+    };
+  }, [sessionId]);
 
   const handleSubPageChange = (subPage: SubPageData) => {
     setCurrentSubPage(subPage);
-    setFormData({});
   };
 
   if (loading) {
@@ -241,74 +234,13 @@ const SessionPage = () => {
 
           {/* Current sub page content */}
           {currentSubPage && (
-            <div className="space-y-6">
-              {/* Sub page title and description */}
-              <div>
-                <h2 className="text-2xl font-semibold">{currentSubPage.name}</h2>
-                {currentSubPage.description && (
-                  <p className="text-muted-foreground mt-2">{currentSubPage.description}</p>
-                )}
-              </div>
-
+            <div>
               {/* Render custom HTML if available */}
               {currentSubPage.html && (
-                <div 
-                  className="prose prose-sm max-w-none mb-6"
+                <div
                   dangerouslySetInnerHTML={{ __html: currentSubPage.html }}
                 />
               )}
-
-              {/* Dynamic form based on fields */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Submit Information</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    {currentSubPage.fields && currentSubPage.fields.length > 0 ? (
-                      currentSubPage.fields.map((field, index) => (
-                        <div key={index} className="space-y-2">
-                          <Label htmlFor={field}>{field}</Label>
-                          {field.toLowerCase().includes('message') || 
-                           field.toLowerCase().includes('comment') || 
-                           field.toLowerCase().includes('description') ? (
-                            <Textarea
-                              id={field}
-                              placeholder={`Enter ${field.toLowerCase()}`}
-                              value={formData[field] || ''}
-                              onChange={(e) => handleInputChange(field, e.target.value)}
-                            />
-                          ) : (
-                            <Input
-                              id={field}
-                              type={field.toLowerCase().includes('email') ? 'email' : 
-                                   field.toLowerCase().includes('phone') ? 'tel' : 
-                                   field.toLowerCase().includes('password') ? 'password' : 'text'}
-                              placeholder={`Enter ${field.toLowerCase()}`}
-                              value={formData[field] || ''}
-                              onChange={(e) => handleInputChange(field, e.target.value)}
-                            />
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="space-y-2">
-                        <Label htmlFor="message">Message</Label>
-                        <Textarea
-                          id="message"
-                          placeholder="Enter your message"
-                          value={formData.message || ''}
-                          onChange={(e) => handleInputChange('message', e.target.value)}
-                        />
-                      </div>
-                    )}
-
-                    <Button type="submit" className="w-full">
-                      Submit
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
             </div>
           )}
         </div>
