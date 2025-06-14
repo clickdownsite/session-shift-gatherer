@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -7,13 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
-import { useMainPages, useSubPages } from '@/hooks/usePageTemplates';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const CreateSession = () => {
-  const { createSession } = useSupabaseSessions();
-  const { data: rawMainPages = [], isLoading: isLoadingMainPages } = useMainPages();
-  const { data: subPages = [], isLoading: isLoadingSubPages } = useSubPages();
+  const { createSession, mainPages: rawMainPages, subPages, isLoading } = useSupabaseSessions();
   const navigate = useNavigate();
   const [mainPageId, setMainPageId] = useState('');
   const [subPageId, setSubPageId] = useState('');
@@ -22,8 +20,6 @@ const CreateSession = () => {
     collectIPGeolocation: true,
     lockToFirstIP: false,
   });
-
-  const isLoading = isLoadingMainPages || isLoadingSubPages;
 
   const mainPages = React.useMemo(() => {
     if (!rawMainPages || !subPages) return [];
@@ -87,6 +83,10 @@ const CreateSession = () => {
             <Skeleton className="h-4 w-64 mt-2" />
           </CardHeader>
           <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+            </div>
             <div className="space-y-2">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-10 w-full" />
