@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -72,16 +71,30 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         return;
       }
 
-      console.log('Session is valid, fetching main page for ID:', sessionData.main_page_id);
+      console.log('Session is valid, fetching main page and sub pages for main page ID:', sessionData.main_page_id);
 
-      // Get the main page data
-      const { data: mainPageData, error: mainPageError } = await supabase
+      // Get the main page data and sub pages data in parallel
+      const mainPageQuery = supabase
         .from('main_pages')
         .select('id, name, description')
         .eq('id', sessionData.main_page_id)
         .maybeSingle();
 
+      const subPagesQuery = supabase
+        .from('sub_pages')
+        .select('*')
+        .eq('main_page_id', sessionData.main_page_id);
+
+      const [mainPageResult, subPagesResult] = await Promise.all([
+        mainPageQuery,
+        subPagesQuery,
+      ]);
+
+      const { data: mainPageData, error: mainPageError } = mainPageResult;
+      const { data: subPagesData, error: subPagesError } = subPagesResult;
+
       console.log('Main page query result:', { mainPageData, mainPageError });
+      console.log('Sub pages query result:', { subPagesData, subPagesError });
 
       if (mainPageError) {
         console.error('Main page query error:', mainPageError);
@@ -89,27 +102,16 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         setLoading(false);
         return;
       }
-
-      if (!mainPageData) {
-        console.error('Main page not found for ID:', sessionData.main_page_id);
-        setError('Main page not found');
+      if (subPagesError) {
+        console.error('Sub pages query error:', subPagesError);
+        setError(`Failed to load pages: ${subPagesError.message}`);
         setLoading(false);
         return;
       }
 
-      console.log('Main page found, fetching sub pages...');
-
-      // Get sub pages for this main page
-      const { data: subPagesData, error: subPagesError } = await supabase
-        .from('sub_pages')
-        .select('*')
-        .eq('main_page_id', sessionData.main_page_id);
-
-      console.log('Sub pages query result:', { subPagesData, subPagesError });
-
-      if (subPagesError) {
-        console.error('Sub pages query error:', subPagesError);
-        setError(`Failed to load pages: ${subPagesError.message}`);
+      if (!mainPageData) {
+        console.error('Main page not found for ID:', sessionData.main_page_id);
+        setError('Main page not found');
         setLoading(false);
         return;
       }
