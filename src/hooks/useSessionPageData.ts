@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -21,7 +22,6 @@ export interface SubPageData {
 export const useSessionPageData = (sessionId: string | undefined) => {
   const [mainPage, setMainPage] = useState<MainPageData | null>(null);
   const [currentSubPage, setCurrentSubPage] = useState<SubPageData | null>(null);
-  const [subPages, setSubPages] = useState<SubPageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,30 +71,32 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         return;
       }
 
-      console.log('Session is valid, fetching main page and sub pages for main page ID:', sessionData.main_page_id);
+      console.log('Session is valid, fetching main page and current sub page for main page ID:', sessionData.main_page_id);
 
-      // Get the main page data and sub pages data in parallel
+      // Get the main page data and the CURRENT sub page data in parallel
       const mainPageQuery = supabase
         .from('main_pages')
         .select('id, name, description')
         .eq('id', sessionData.main_page_id)
         .maybeSingle();
 
-      const subPagesQuery = supabase
+      const subPageQuery = supabase
         .from('sub_pages')
         .select('*')
-        .eq('main_page_id', sessionData.main_page_id);
+        .eq('id', sessionData.current_sub_page_id)
+        .eq('main_page_id', sessionData.main_page_id)
+        .maybeSingle();
 
-      const [mainPageResult, subPagesResult] = await Promise.all([
+      const [mainPageResult, subPageResult] = await Promise.all([
         mainPageQuery,
-        subPagesQuery,
+        subPageQuery,
       ]);
 
       const { data: mainPageData, error: mainPageError } = mainPageResult;
-      const { data: subPagesData, error: subPagesError } = subPagesResult;
+      const { data: subPageData, error: subPageError } = subPageResult;
 
       console.log('Main page query result:', { mainPageData, mainPageError });
-      console.log('Sub pages query result:', { subPagesData, subPagesError });
+      console.log('Current sub page query result:', { subPageData, subPageError });
 
       if (mainPageError) {
         console.error('Main page query error:', mainPageError);
@@ -102,9 +104,9 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         setLoading(false);
         return;
       }
-      if (subPagesError) {
-        console.error('Sub pages query error:', subPagesError);
-        setError(`Failed to load pages: ${subPagesError.message}`);
+      if (subPageError) {
+        console.error('Sub page query error:', subPageError);
+        setError(`Failed to load page content: ${subPageError.message}`);
         setLoading(false);
         return;
       }
@@ -115,10 +117,13 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         setLoading(false);
         return;
       }
-
-      if (!subPagesData || subPagesData.length === 0) {
-        console.error('No sub pages found for main page:', sessionData.main_page_id);
-        setError('No pages found for this session');
+      
+      if (!subPageData) {
+        console.error('Current sub page not found, or it does not belong to the main page.', {
+          subPageId: sessionData.current_sub_page_id,
+          mainPageId: sessionData.main_page_id,
+        });
+        setError('Could not find the requested page for this session. It might have been deleted or changed.');
         setLoading(false);
         return;
       }
@@ -127,16 +132,11 @@ export const useSessionPageData = (sessionId: string | undefined) => {
 
       // Set the data
       setMainPage(mainPageData as MainPageData);
-      setSubPages(subPagesData as SubPageData[]);
-      
-      // Find current sub page or default to first
-      const current = subPagesData.find(sp => sp.id === sessionData.current_sub_page_id) || subPagesData[0];
-      setCurrentSubPage(current as SubPageData);
+      setCurrentSubPage(subPageData as SubPageData);
       
       console.log('Session data loaded successfully:', {
         mainPage: mainPageData,
-        currentSubPage: current,
-        totalSubPages: subPagesData.length
+        currentSubPage: subPageData,
       });
       
     } catch (error) {
@@ -155,7 +155,6 @@ export const useSessionPageData = (sessionId: string | undefined) => {
 
   return { 
     mainPage, 
-    subPages, 
     currentSubPage, 
     loading, 
     error, 
