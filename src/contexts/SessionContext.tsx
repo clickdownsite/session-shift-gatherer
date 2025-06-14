@@ -78,78 +78,66 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Set up realtime subscriptions with proper cleanup and error handling
   useEffect(() => {
-    if (!user) {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-      return;
-    }
+    let isMounted = true;
 
-    const channelName = `session-data-changes-${user.id}`;
-    
-    // Find if a channel with this name already exists
-    let channel = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
-
-    // If channel exists and is subscribed, we're good
-    if (channel && (channel.state === 'joined' || channel.state === 'joining')) {
-      console.log('Channel subscription is already active.');
-      channelRef.current = channel; // make sure our ref is up to date
-      return;
-    }
-    
-    // If an old channel exists but is in a bad state, remove it before creating a new one
-    if (channel) {
-      console.log(`Removing existing channel in state: ${channel.state}`);
-      supabase.removeChannel(channel);
-    }
-    
-    console.log('Setting up new realtime subscription.');
-    
-    channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'session_data'
-        },
-        (payload) => {
-          console.log('New session data received:', payload);
-          
-          queryClient.invalidateQueries({ queryKey: ['sessions'] });
-          queryClient.invalidateQueries({ queryKey: ['session_data'] });
-          
-          toast("New Data Received", {
-            description: `New form submission received`,
-          });
+    const setupRealtime = async () => {
+      if (!user) {
+        if (channelRef.current) {
+          await supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
         }
-      );
-
-    channel.subscribe((status) => {
-      console.log('Channel subscription status:', status);
-      
-      if (status === 'SUBSCRIBED') {
-        console.log('Successfully subscribed to realtime updates');
-      } else if (status === 'CHANNEL_ERROR') {
-        console.error('Failed to subscribe to realtime updates');
+        return;
       }
-    });
+      
+      const channelName = `session-data-changes-${user.id}`;
+      const existing = supabase.getChannels().find(c => c.topic.endsWith(channelName));
+
+      if (existing) {
+        if (existing.state === 'joined' || existing.state === 'joining') {
+          console.log('Realtime channel already exists and is active.');
+          channelRef.current = existing;
+          return;
+        } else {
+          console.log(`Removing stale channel with state ${existing.state}`);
+          await supabase.removeChannel(existing);
+        }
+      }
+
+      if (!isMounted) return;
+
+      console.log('Setting up new realtime subscription.');
+      const newChannel = supabase.channel(channelName)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'session_data' },
+          (payload) => {
+            console.log('New session data received:', payload);
+            queryClient.invalidateQueries({ queryKey: ['sessions'] });
+            queryClient.invalidateQueries({ queryKey: ['session_data'] });
+            toast("New Data Received", { description: `New form submission received` });
+          }
+        );
+
+      channelRef.current = newChannel;
+      
+      newChannel.subscribe((status, err) => {
+        console.log(`Realtime subscription status: ${status}`, err || '');
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to realtime updates.');
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('Realtime subscription failed.', err);
+        }
+      });
+    };
     
-    channelRef.current = channel;
+    setupRealtime();
 
     return () => {
-      const channelToRemove = channel;
-      console.log('Cleaning up realtime subscription on effect cleanup for channel:', channelToRemove.topic);
-      supabase.removeChannel(channelToRemove)
-        .then(status => console.log('Channel removed, status:', status));
-      
-      if (channelRef.current === channelToRemove) {
-          channelRef.current = null;
-      }
+      isMounted = false;
+      // The ref might point to a channel that should persist across renders,
+      // so we only remove it if the user is logged out.
+      // The setup logic will handle stale channels on user change.
     };
-  }, [user?.id, queryClient]);
+  }, [user, queryClient]);
 
   // Transform Supabase data to match expected format with better error handling
   const transformedMainPages = React.useMemo(() => {
