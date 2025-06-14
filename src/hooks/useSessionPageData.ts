@@ -38,19 +38,10 @@ export const useSessionPageData = (sessionId: string | undefined) => {
       setLoading(true);
       setError(null);
       
-      // Single query to get session with related data
+      // First, get the session data
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
-        .select(`
-          main_page_id,
-          current_sub_page_id,
-          active,
-          main_pages!inner (
-            id,
-            name,
-            description
-          )
-        `)
+        .select('main_page_id, current_sub_page_id, active')
         .eq('id', sessionId)
         .maybeSingle();
 
@@ -69,6 +60,26 @@ export const useSessionPageData = (sessionId: string | undefined) => {
 
       if (!sessionData.active) {
         setError('Session is no longer active');
+        setLoading(false);
+        return;
+      }
+
+      // Get the main page data
+      const { data: mainPageData, error: mainPageError } = await supabase
+        .from('main_pages')
+        .select('id, name, description')
+        .eq('id', sessionData.main_page_id)
+        .maybeSingle();
+
+      if (mainPageError) {
+        console.error('Main page query error:', mainPageError);
+        setError(`Failed to load main page: ${mainPageError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!mainPageData) {
+        setError('Main page not found');
         setLoading(false);
         return;
       }
@@ -93,7 +104,7 @@ export const useSessionPageData = (sessionId: string | undefined) => {
       }
 
       // Set the data
-      setMainPage(sessionData.main_pages as MainPageData);
+      setMainPage(mainPageData as MainPageData);
       setSubPages(subPagesData as SubPageData[]);
       
       // Find current sub page or default to first
