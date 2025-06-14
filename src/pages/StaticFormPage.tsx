@@ -76,7 +76,7 @@ const StaticFormPage = () => {
           interactionType: 'input_change',
           elementSelector: getElementSelector(target),
           interactionData: {
-            fieldName: target.name,
+            fieldName: target.name || target.id,
             value: target.value,
             type: target.type
           }
@@ -97,7 +97,8 @@ const StaticFormPage = () => {
 
   const getElementSelector = (element: HTMLElement): string => {
     if (element.id) return `#${element.id}`;
-    if (element.name) return `[name="${element.name}"]`;
+    const nameAttr = element.getAttribute('name');
+    if (nameAttr) return `[name="${nameAttr}"]`;
     if (element.className) return `.${element.className.split(' ')[0]}`;
     return element.tagName.toLowerCase();
   };

@@ -40,6 +40,16 @@ export interface UserInteraction {
   ip_address: string | null;
 }
 
+interface CreateStaticFormData {
+  name: string;
+  description?: string;
+  fields?: any[];
+  html?: string;
+  css?: string;
+  javascript?: string;
+  is_active?: boolean;
+}
+
 export const useStaticForms = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -79,13 +89,19 @@ export const useStaticForms = () => {
 
   // Create static form mutation
   const createStaticFormMutation = useMutation({
-    mutationFn: async (formData: Partial<StaticForm>) => {
+    mutationFn: async (formData: CreateStaticFormData) => {
       if (!user) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
         .from('static_forms')
         .insert({
-          ...formData,
+          name: formData.name,
+          description: formData.description || null,
+          fields: formData.fields || [],
+          html: formData.html || '',
+          css: formData.css || '',
+          javascript: formData.javascript || '',
+          is_active: formData.is_active !== undefined ? formData.is_active : true,
           created_by: user.id
         })
         .select()
