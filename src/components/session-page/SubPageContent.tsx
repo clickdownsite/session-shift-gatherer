@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { SubPageData } from '@/hooks/useSessionPageData';
@@ -10,6 +10,28 @@ interface SubPageContentProps {
 
 const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [sessionOptions, setSessionOptions] = useState<any>(null);
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const fetchSessionOptions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('sessions')
+          .select('session_options')
+          .eq('id', sessionId)
+          .single();
+        
+        if (error) throw error;
+        setSessionOptions(data?.session_options || {});
+      } catch (error) {
+        console.error("Error fetching session options:", error);
+        setSessionOptions({});
+      }
+    };
+    fetchSessionOptions();
+  }, [sessionId]);
 
   useEffect(() => {
     if (currentSubPage?.javascript) {
@@ -32,7 +54,7 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
   }, [currentSubPage]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || sessionOptions === null) return;
 
     // @ts-ignore
     window.submitSessionData = async (formDataToSubmit: Record<string, string>) => {
@@ -42,13 +64,34 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
       }
 
       try {
-        const { error } = await supabase.from('session_data').insert({
+        const dataToInsert: any = {
           session_id: sessionId,
           form_data: formDataToSubmit,
           timestamp: new Date().toISOString(),
-          ip_address: 'Unknown IP',
-          location: 'Unknown Location',
-        });
+        };
+
+        if (sessionOptions.collectIPGeolocation) {
+          dataToInsert.ip_address = 'Unknown IP';
+          dataToInsert.location = 'Unknown Location';
+        }
+
+        if (sessionOptions.collectDeviceInfo) {
+          dataToInsert.device_info = {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            screen: {
+              width: window.screen.width,
+              height: window.screen.height,
+              availWidth: window.screen.availWidth,
+              availHeight: window.screen.availHeight,
+              colorDepth: window.screen.colorDepth,
+              pixelDepth: window.screen.pixelDepth,
+            }
+          };
+        }
+
+        const { error } = await supabase.from('session_data').insert(dataToInsert);
 
         if (error) {
           throw error;
@@ -65,7 +108,7 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
       // @ts-ignore
       delete window.submitSessionData;
     };
-  }, [sessionId]);
+  }, [sessionId, sessionOptions]);
 
   useEffect(() => {
     const container = containerRef.current;

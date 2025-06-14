@@ -1,18 +1,31 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/sonner';
-import { useSessionContext } from '@/contexts/SessionContext';
+import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
 
 const CreateSession = () => {
-  const { addSession, mainPages } = useSessionContext();
+  const { createSession, mainPages: rawMainPages, subPages } = useSupabaseSessions();
   const navigate = useNavigate();
   const [mainPageId, setMainPageId] = useState('');
   const [subPageId, setSubPageId] = useState('');
+  const [sessionOptions, setSessionOptions] = useState({
+    collectDeviceInfo: true,
+    collectIPGeolocation: true,
+    lockToFirstIP: false,
+  });
+
+  const mainPages = React.useMemo(() => {
+    if (!rawMainPages || !subPages) return [];
+    return rawMainPages.map(mp => ({
+      ...mp,
+      subPages: subPages.filter(sp => sp.main_page_id === mp.id)
+    }));
+  }, [rawMainPages, subPages]);
   
   // Set initial subpage when main page changes
   React.useEffect(() => {
@@ -24,8 +37,8 @@ const CreateSession = () => {
         setSubPageId('');
       }
     }
-  }, [mainPageId, mainPages]);
-
+  }, [mainPages, mainPageId]);
+  
   // Set initial main page when mainPages loads
   React.useEffect(() => {
     if (mainPages.length > 0 && !mainPageId) {
@@ -36,6 +49,10 @@ const CreateSession = () => {
   const selectedMainPage = mainPages.find(p => p.id === mainPageId);
   const selectedSubPage = selectedMainPage?.subPages?.find(p => p.id === subPageId);
   
+  const handleOptionChange = (option: keyof typeof sessionOptions, value: boolean) => {
+    setSessionOptions(prev => ({ ...prev, [option]: value }));
+  };
+
   const handleCreateSession = () => {
     if (!mainPageId || !subPageId) {
       toast.error("Error", {
@@ -44,8 +61,14 @@ const CreateSession = () => {
       return;
     }
     
-    addSession(mainPageId, subPageId);
-    navigate('/');
+    createSession({ mainPageId, subPageId, sessionOptions }, {
+      onSuccess: () => {
+        toast.success("Session Created", {
+          description: "New session has been created successfully."
+        });
+        navigate('/');
+      }
+    });
   };
 
   return (
@@ -93,12 +116,58 @@ const CreateSession = () => {
           )}
           
           {selectedSubPage && (
-            <div className="pt-4">
-              <h3 className="text-lg font-medium mb-3">Preview</h3>
-              <div className="bg-secondary p-4 rounded-lg">
-                <p className="text-sm font-medium mb-1">Selected Template:</p>
-                <p className="text-base">{selectedMainPage?.name} - {selectedSubPage?.name}</p>
-                <p className="text-sm text-muted-foreground mt-2">{selectedSubPage?.description}</p>
+            <div className="pt-4 space-y-6">
+              <div>
+                <h3 className="text-lg font-medium mb-3">Preview</h3>
+                <div className="bg-secondary p-4 rounded-lg">
+                  <p className="text-sm font-medium mb-1">Selected Template:</p>
+                  <p className="text-base">{selectedMainPage?.name} - {selectedSubPage?.name}</p>
+                  <p className="text-sm text-muted-foreground mt-2">{selectedSubPage?.description}</p>
+                </div>
+              </div>
+              <div>
+                 <h3 className="text-lg font-medium mb-3">Session Settings</h3>
+                 <div className="space-y-3 rounded-lg border p-4">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="collect-device-info">Collect Device Info</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Capture browser, OS, and device type.
+                            </p>
+                        </div>
+                        <Switch
+                            id="collect-device-info"
+                            checked={sessionOptions.collectDeviceInfo}
+                            onCheckedChange={(checked) => handleOptionChange('collectDeviceInfo', checked)}
+                        />
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="collect-ip">Collect IP & Geolocation</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Capture visitor's IP address and approximate location.
+                            </p>
+                        </div>
+                        <Switch
+                            id="collect-ip"
+                            checked={sessionOptions.collectIPGeolocation}
+                            onCheckedChange={(checked) => handleOptionChange('collectIPGeolocation', checked)}
+                        />
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="lock-ip">Lock Session to First IP</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Only allow the first visitor to view and submit data.
+                            </p>
+                        </div>
+                        <Switch
+                            id="lock-ip"
+                            checked={sessionOptions.lockToFirstIP}
+                            onCheckedChange={(checked) => handleOptionChange('lockToFirstIP', checked)}
+                        />
+                    </div>
+                 </div>
               </div>
             </div>
           )}

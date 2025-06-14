@@ -363,6 +363,7 @@ export type Database = {
       session_data: {
         Row: {
           created_at: string | null
+          device_info: Json | null
           form_data: Json | null
           id: string
           ip_address: string | null
@@ -372,6 +373,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          device_info?: Json | null
           form_data?: Json | null
           id?: string
           ip_address?: string | null
@@ -381,6 +383,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          device_info?: Json | null
           form_data?: Json | null
           id?: string
           ip_address?: string | null
@@ -441,10 +444,12 @@ export type Database = {
           active: boolean | null
           created_at: string | null
           current_sub_page_id: string
+          first_viewer_ip: string | null
           has_new_data: boolean | null
           id: string
           main_page_id: string
           page_type: string | null
+          session_options: Json
           updated_at: string | null
           user_id: string | null
         }
@@ -452,10 +457,12 @@ export type Database = {
           active?: boolean | null
           created_at?: string | null
           current_sub_page_id: string
+          first_viewer_ip?: string | null
           has_new_data?: boolean | null
           id: string
           main_page_id: string
           page_type?: string | null
+          session_options?: Json
           updated_at?: string | null
           user_id?: string | null
         }
@@ -463,10 +470,12 @@ export type Database = {
           active?: boolean | null
           created_at?: string | null
           current_sub_page_id?: string
+          first_viewer_ip?: string | null
           has_new_data?: boolean | null
           id?: string
           main_page_id?: string
           page_type?: string | null
+          session_options?: Json
           updated_at?: string | null
           user_id?: string | null
         }

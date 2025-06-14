@@ -14,6 +14,8 @@ export interface Session {
   updated_at: string;
   active: boolean;
   has_new_data: boolean;
+  session_options: Record<string, any>;
+  first_viewer_ip: string | null;
 }
 
 export interface SessionData {
@@ -23,6 +25,7 @@ export interface SessionData {
   ip_address: string | null;
   location: string | null;
   form_data: Record<string, any>;
+  device_info: Record<string, any> | null;
 }
 
 export interface MainPage {
@@ -93,7 +96,7 @@ export const useSupabaseSessions = () => {
 
   // Create session mutation
   const createSessionMutation = useMutation({
-    mutationFn: async ({ mainPageId, subPageId }: { mainPageId: string; subPageId: string }) => {
+    mutationFn: async ({ mainPageId, subPageId, sessionOptions }: { mainPageId: string; subPageId: string; sessionOptions?: Record<string, any> }) => {
       if (!user) throw new Error('User not authenticated');
       
       const sessionId = Math.random().toString(36).substring(2, 8);
@@ -108,7 +111,8 @@ export const useSupabaseSessions = () => {
           current_sub_page_id: subPageId,
           page_type: mainPage?.name,
           active: true,
-          has_new_data: false
+          has_new_data: false,
+          session_options: sessionOptions || {}
         })
         .select()
         .single();
@@ -118,10 +122,7 @@ export const useSupabaseSessions = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
-      toast({
-        title: "Session Created",
-        description: "New session has been created successfully."
-      });
+      // Toast is now handled in the component for better navigation flow
     },
     onError: (error) => {
       toast({
