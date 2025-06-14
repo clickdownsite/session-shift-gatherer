@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { SubPageData } from '@/hooks/useSessionPageData';
@@ -10,6 +9,8 @@ interface SubPageContentProps {
 }
 
 const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (currentSubPage?.javascript) {
       try {
@@ -66,6 +67,49 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
     };
   }, [sessionId]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleSubmit = (event: Event) => {
+      const form = event.target as HTMLFormElement;
+
+      if (form && form.tagName === 'FORM' && !form.hasAttribute('data-no-auto-submit')) {
+        event.preventDefault();
+        console.log('Auto-capturing form submission...');
+
+        const formData = new FormData(form);
+        const dataToSubmit: Record<string, string> = {};
+        formData.forEach((value, key) => {
+          if (typeof value === 'string') {
+            dataToSubmit[key] = value;
+          }
+        });
+
+        if (Object.keys(dataToSubmit).length === 0) {
+          console.warn('Form has no data to submit.');
+          return;
+        }
+
+        // @ts-ignore
+        if (window.submitSessionData) {
+          // @ts-ignore
+          window.submitSessionData(dataToSubmit);
+        } else {
+          console.error('Data submission function is not available.');
+        }
+      }
+    };
+
+    container.addEventListener('submit', handleSubmit);
+
+    return () => {
+      if (container) {
+        container.removeEventListener('submit', handleSubmit);
+      }
+    };
+  }, [currentSubPage]);
+
   if (!currentSubPage) return null;
 
   return (
@@ -75,6 +119,7 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
       )}
       {currentSubPage.html && (
         <div
+          ref={containerRef}
           dangerouslySetInnerHTML={{ __html: currentSubPage.html }}
         />
       )}
