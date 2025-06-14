@@ -29,7 +29,7 @@ const StaticForms = () => {
   };
 
   const getFormUrl = (formId: string) => {
-    return `${window.location.origin}/static-form/${formId}`;
+    return `${window.location.origin}/form/${formId}`;
   };
 
   const copyToClipboard = (url: string) => {
