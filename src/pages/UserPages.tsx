@@ -1,18 +1,17 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Eye, Copy } from 'lucide-react';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/components/ui/sonner';
 import FileUpload from '@/components/FileUpload';
+import MainPageDialogContent from '@/components/user-pages/MainPageDialogContent';
+import SubPageDialogContent from '@/components/user-pages/SubPageDialogContent';
+import PreviewDialogContent from '@/components/user-pages/PreviewDialogContent';
 
 const UserPages = () => {
   const { user } = useAuth();
@@ -207,9 +206,15 @@ const UserPages = () => {
     });
     setIsEditDialogOpen(true);
   };
+  
+  const openCreateMainPage = () => {
+    resetMainPageForm();
+    setIsCreateDialogOpen(true);
+  };
 
   const openCreateSubPage = (mainPage: any) => {
     setSelectedMainPage(mainPage);
+    setSelectedSubPage(null);
     resetSubPageForm();
     setIsSubPageDialogOpen(true);
   };
@@ -244,45 +249,10 @@ const UserPages = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">My Custom Pages</h1>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Page
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Main Page</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Page Name</Label>
-                <Input
-                  id="name"
-                  value={mainPageForm.name}
-                  onChange={(e) => setMainPageForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter page name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={mainPageForm.description}
-                  onChange={(e) => setMainPageForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter page description"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleCreateMainPage}>Create Page</Button>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={openCreateMainPage}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create New Page
+        </Button>
       </div>
 
       <div className="grid gap-6">
@@ -383,195 +353,54 @@ const UserPages = () => {
         ))}
       </div>
 
+      {/* Create Main Page Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent>
+          <MainPageDialogContent
+            mainPageForm={mainPageForm}
+            setMainPageForm={setMainPageForm}
+            handleSubmit={handleCreateMainPage}
+            closeDialog={() => setIsCreateDialogOpen(false)}
+            isEditing={false}
+          />
+        </DialogContent>
+      </Dialog>
+      
       {/* Edit Main Page Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Main Page</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-name">Page Name</Label>
-              <Input
-                id="edit-name"
-                value={mainPageForm.name}
-                onChange={(e) => setMainPageForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter page name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={mainPageForm.description}
-                onChange={(e) => setMainPageForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Enter page description"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleUpdateMainPage}>Update Page</Button>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
+          <MainPageDialogContent
+            mainPageForm={mainPageForm}
+            setMainPageForm={setMainPageForm}
+            handleSubmit={handleUpdateMainPage}
+            closeDialog={() => setIsEditDialogOpen(false)}
+            isEditing={true}
+          />
         </DialogContent>
       </Dialog>
 
       {/* Create/Edit Sub Page Dialog */}
       <Dialog open={isSubPageDialogOpen} onOpenChange={setIsSubPageDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedSubPage ? 'Edit Sub Page' : 'Create New Sub Page'}
-            </DialogTitle>
-          </DialogHeader>
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="fields">Form Fields</TabsTrigger>
-              <TabsTrigger value="content">Content</TabsTrigger>
-              <TabsTrigger value="preview">Preview</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="basic" className="space-y-4">
-              <div>
-                <Label htmlFor="sub-name">Sub Page Name</Label>
-                <Input
-                  id="sub-name"
-                  value={subPageForm.name}
-                  onChange={(e) => setSubPageForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter sub page name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="sub-description">Description</Label>
-                <Textarea
-                  id="sub-description"
-                  value={subPageForm.description}
-                  onChange={(e) => setSubPageForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter sub page description"
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="fields" className="space-y-4">
-              <div>
-                <Label>Form Fields</Label>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    value={fieldInput}
-                    onChange={(e) => setFieldInput(e.target.value)}
-                    placeholder="Enter field name (e.g., email, password)"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddField()}
-                  />
-                  <Button onClick={handleAddField}>Add Field</Button>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {subPageForm.fields.map((field) => (
-                    <Badge key={field} variant="secondary" className="cursor-pointer">
-                      {field}
-                      <button
-                        onClick={() => handleRemoveField(field)}
-                        className="ml-2 hover:text-destructive"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="content" className="space-y-4">
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <Label htmlFor="html">HTML Content</Label>
-                    <FileUpload
-                      onFileUpload={handleFileUpload}
-                      acceptedTypes={['html']}
-                      className="text-xs"
-                    />
-                  </div>
-                  <Textarea
-                    id="html"
-                    value={subPageForm.html}
-                    onChange={(e) => setSubPageForm(prev => ({ ...prev, html: e.target.value }))}
-                    placeholder="Enter HTML content"
-                    className="font-mono text-sm min-h-[200px]"
-                  />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <Label htmlFor="css">CSS Styles</Label>
-                    <FileUpload
-                      onFileUpload={handleFileUpload}
-                      acceptedTypes={['css']}
-                      className="text-xs"
-                    />
-                  </div>
-                  <Textarea
-                    id="css"
-                    value={subPageForm.css}
-                    onChange={(e) => setSubPageForm(prev => ({ ...prev, css: e.target.value }))}
-                    placeholder="Enter CSS styles"
-                    className="font-mono text-sm min-h-[150px]"
-                  />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <Label htmlFor="javascript">JavaScript</Label>
-                    <FileUpload
-                      onFileUpload={handleFileUpload}
-                      acceptedTypes={['javascript']}
-                      className="text-xs"
-                    />
-                  </div>
-                  <Textarea
-                    id="javascript"
-                    value={subPageForm.javascript}
-                    onChange={(e) => setSubPageForm(prev => ({ ...prev, javascript: e.target.value }))}
-                    placeholder="Enter JavaScript code"
-                    className="font-mono text-sm min-h-[150px]"
-                  />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="preview" className="space-y-4">
-              <div className="border rounded-lg p-4 min-h-[400px] bg-white">
-                <style dangerouslySetInnerHTML={{ __html: subPageForm.css }} />
-                <div dangerouslySetInnerHTML={{ __html: subPageForm.html }} />
-                <script dangerouslySetInnerHTML={{ __html: subPageForm.javascript }} />
-              </div>
-            </TabsContent>
-          </Tabs>
-          
-          <div className="flex gap-2 mt-6">
-            <Button onClick={selectedSubPage ? handleUpdateSubPage : handleCreateSubPage}>
-              {selectedSubPage ? 'Update Sub Page' : 'Create Sub Page'}
-            </Button>
-            <Button variant="outline" onClick={() => setIsSubPageDialogOpen(false)}>
-              Cancel
-            </Button>
-          </div>
+          <SubPageDialogContent
+            subPageForm={subPageForm}
+            setSubPageForm={setSubPageForm}
+            fieldInput={fieldInput}
+            setFieldInput={setFieldInput}
+            handleAddField={handleAddField}
+            handleRemoveField={handleRemoveField}
+            handleFileUpload={handleFileUpload}
+            handleSubmit={selectedSubPage ? handleUpdateSubPage : handleCreateSubPage}
+            closeDialog={() => setIsSubPageDialogOpen(false)}
+            isEditing={!!selectedSubPage}
+          />
         </DialogContent>
       </Dialog>
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
         <DialogContent className="max-w-6xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Preview</DialogTitle>
-          </DialogHeader>
-          <div className="border rounded-lg p-4 min-h-[500px] bg-white overflow-auto">
-            <style dangerouslySetInnerHTML={{ __html: previewContent.css }} />
-            <div dangerouslySetInnerHTML={{ __html: previewContent.html }} />
-            <script dangerouslySetInnerHTML={{ __html: previewContent.javascript }} />
-          </div>
+          <PreviewDialogContent previewContent={previewContent} />
         </DialogContent>
       </Dialog>
     </div>
