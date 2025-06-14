@@ -88,9 +88,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // A channel can only be subscribed to once.
-    // If we already have a channel, we don't need to do anything.
-    if (channelRef.current) {
+    // If channel exists and is already joined or joining, we're good.
+    if (channelRef.current && (channelRef.current.state === 'joined' || channelRef.current.state === 'joining')) {
+      console.log('Channel subscription is active, no need to re-subscribe.');
       return;
     }
 
@@ -136,13 +136,12 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     channelRef.current = channel;
 
     return () => {
-      console.log('Cleaning up realtime subscription');
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      console.log('Cleaning up realtime subscription on unmount/dep change');
+      // We must remove the channel to prevent leaks.
+      // The channel object is captured in the closure of the effect.
+      supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+  }, [user?.id, queryClient]);
 
   // Transform Supabase data to match expected format with better error handling
   const transformedMainPages = React.useMemo(() => {
