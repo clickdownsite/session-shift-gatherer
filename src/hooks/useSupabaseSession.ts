@@ -39,7 +39,7 @@ export const useSupabaseSessions = () => {
     sessions: sessionsHook.sessions,
     mainPages: mainPagesList,
     subPages: subPagesList,
-    isLoading: sessionsHook.isLoading || isLoadingMainPages || isLoadingSubPages,
+    isLoading: sessionsHook.isLoading,
     createSession,
     updateSession: sessionsHook.updateSession,
     closeSession: sessionsHook.closeSession,
