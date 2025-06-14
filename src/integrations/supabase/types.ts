@@ -33,6 +33,39 @@ export type Database = {
         }
         Relationships: []
       }
+      page_flows: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          flow_config: Json
+          id: string
+          name: string
+          start_page_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          flow_config?: Json
+          id?: string
+          name: string
+          start_page_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          flow_config?: Json
+          id?: string
+          name?: string
+          start_page_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -128,6 +161,83 @@ export type Database = {
         }
         Relationships: []
       }
+      static_form_submissions: {
+        Row: {
+          form_id: string | null
+          id: string
+          ip_address: string | null
+          submission_data: Json
+          submitted_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          form_id?: string | null
+          id?: string
+          ip_address?: string | null
+          submission_data?: Json
+          submitted_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          form_id?: string | null
+          id?: string
+          ip_address?: string | null
+          submission_data?: Json
+          submitted_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "static_form_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "static_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      static_forms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          css: string | null
+          description: string | null
+          fields: Json
+          html: string | null
+          id: string
+          is_active: boolean
+          javascript: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          css?: string | null
+          description?: string | null
+          fields?: Json
+          html?: string | null
+          id?: string
+          is_active?: boolean
+          javascript?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          css?: string | null
+          description?: string | null
+          fields?: Json
+          html?: string | null
+          id?: string
+          is_active?: boolean
+          javascript?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sub_pages: {
         Row: {
           created_at: string | null
@@ -171,6 +281,50 @@ export type Database = {
             columns: ["main_page_id"]
             isOneToOne: false
             referencedRelation: "main_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_interactions: {
+        Row: {
+          element_selector: string | null
+          form_id: string | null
+          id: string
+          interaction_data: Json | null
+          interaction_type: string
+          ip_address: string | null
+          page_url: string | null
+          session_id: string | null
+          timestamp: string
+        }
+        Insert: {
+          element_selector?: string | null
+          form_id?: string | null
+          id?: string
+          interaction_data?: Json | null
+          interaction_type: string
+          ip_address?: string | null
+          page_url?: string | null
+          session_id?: string | null
+          timestamp?: string
+        }
+        Update: {
+          element_selector?: string | null
+          form_id?: string | null
+          id?: string
+          interaction_data?: Json | null
+          interaction_type?: string
+          ip_address?: string | null
+          page_url?: string | null
+          session_id?: string | null
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_interactions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "static_forms"
             referencedColumns: ["id"]
           },
         ]

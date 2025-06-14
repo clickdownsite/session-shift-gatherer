@@ -19,6 +19,8 @@ import Auth from "./pages/Auth";
 import AdminLogin from "./pages/AdminLogin";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import StaticForms from "./pages/StaticForms";
+import StaticFormPage from "./pages/StaticFormPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminData from "./pages/admin/AdminData";
@@ -42,6 +44,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/admin-login" element={<AdminLogin />} />
               <Route path="/page/:sessionId" element={<LoginPage />} />
+              <Route path="/static-form/:formId" element={<StaticFormPage />} />
               
               {/* Protected routes with main layout */}
               <Route path="/" element={
@@ -62,6 +65,13 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <CreateSession />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/static-forms" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <StaticForms />
                   </Layout>
                 </ProtectedRoute>
               } />
