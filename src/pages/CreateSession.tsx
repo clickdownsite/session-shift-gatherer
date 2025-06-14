@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -134,7 +133,7 @@ const CreateSession = () => {
               <Select value={subPageId} onValueChange={setSubPageId}>
                 <SelectTrigger id="sub-page-type">
                   <SelectValue placeholder="Select Sub Page" />
-                </Trigger>
+                </SelectTrigger>
                 <SelectContent>
                   {selectedMainPage.subPages.map((subPage) => (
                     <SelectItem key={subPage.id} value={subPage.id}>
