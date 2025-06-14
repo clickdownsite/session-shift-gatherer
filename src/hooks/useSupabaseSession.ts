@@ -2,8 +2,9 @@
 import { useSessions as useSessionsHook } from './useSessions';
 import { useMainPages, useSubPages } from './usePageTemplates';
 import { useSessionData as useSessionDataHook } from './useSessionData';
-import type { Session as SessionType, SessionData as SessionDataType, MainPage as MainPageType, SubPage as SubPageType } from '@/types/session';
+import type { Session as SessionType } from '@/types/session';
 import { MutateOptions } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 export type { Session, SessionData, MainPage, SubPage } from '@/types/session';
 
@@ -18,11 +19,16 @@ export const useSupabaseSessions = () => {
   const { data: mainPages, isLoading: isLoadingMainPages } = useMainPages();
   const { data: subPages, isLoading: isLoadingSubPages } = useSubPages();
 
+  // Use useMemo to avoid recomputation unless underlying data changes
+  const mainPagesList = useMemo(() => mainPages || [], [mainPages]);
+  const subPagesList = useMemo(() => subPages || [], [subPages]);
+
   const createSession = (
     variables: CreateSessionVariables,
     options?: MutateOptions<SessionType, Error, CreateSessionVariables, unknown>
   ) => {
-    const mainPage = (mainPages || []).find(p => p.id === variables.mainPageId);
+    // Lookup mainPage name (avoid looping if not needed)
+    const mainPage = mainPagesList.find(p => p.id === variables.mainPageId);
     sessionsHook.createSession(
       { ...variables, pageName: mainPage?.name },
       options
@@ -31,8 +37,8 @@ export const useSupabaseSessions = () => {
 
   return {
     sessions: sessionsHook.sessions,
-    mainPages: mainPages || [],
-    subPages: subPages || [],
+    mainPages: mainPagesList,
+    subPages: subPagesList,
     isLoading: sessionsHook.isLoading || isLoadingMainPages || isLoadingSubPages,
     createSession,
     updateSession: sessionsHook.updateSession,
@@ -41,4 +47,3 @@ export const useSupabaseSessions = () => {
 };
 
 export const useSessionData = useSessionDataHook;
-
