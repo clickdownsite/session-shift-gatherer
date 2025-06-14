@@ -32,23 +32,45 @@ const SessionPage = () => {
   const [subPage, setSubPage] = useState<SubPageData | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      setError('No session ID provided');
+      setLoading(false);
+      return;
+    }
 
     const fetchSessionData = async () => {
+      console.log('Fetching session data for ID:', sessionId);
+      
       try {
-        // Fetch session data
-        const { data: sessionData, error: sessionError } = await supabase
+        // First, try to fetch session data without the active filter to see if it exists
+        const { data: sessionCheck, error: sessionCheckError } = await supabase
           .from('sessions')
           .select('*')
-          .eq('id', sessionId)
-          .eq('active', true)
-          .single();
+          .eq('id', sessionId);
 
-        if (sessionError) {
-          console.error('Session error:', sessionError);
-          toast.error('Session not found or inactive');
+        console.log('Session check result:', sessionCheck, sessionCheckError);
+
+        if (sessionCheckError) {
+          console.error('Session check error:', sessionCheckError);
+          setError(`Database error: ${sessionCheckError.message}`);
+          return;
+        }
+
+        if (!sessionCheck || sessionCheck.length === 0) {
+          console.log('No session found with ID:', sessionId);
+          setError('Session not found in database');
+          return;
+        }
+
+        const sessionData = sessionCheck[0];
+        console.log('Found session:', sessionData);
+
+        if (!sessionData.active) {
+          console.log('Session is inactive');
+          setError('This session has been closed');
           return;
         }
 
@@ -61,16 +83,23 @@ const SessionPage = () => {
           .eq('id', sessionData.current_sub_page_id)
           .single();
 
+        console.log('Sub page data:', subPageData, subPageError);
+
         if (subPageError) {
           console.error('Sub page error:', subPageError);
-          toast.error('Page content not found');
+          setError(`Page content error: ${subPageError.message}`);
+          return;
+        }
+
+        if (!subPageData) {
+          setError('Page content not found');
           return;
         }
 
         setSubPage(subPageData);
       } catch (error) {
         console.error('Error fetching session:', error);
-        toast.error('Failed to load session');
+        setError(`Failed to load session: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setLoading(false);
       }
@@ -82,6 +111,8 @@ const SessionPage = () => {
   // Set up real-time subscription for session updates
   useEffect(() => {
     if (!sessionId) return;
+
+    console.log('Setting up realtime subscription for session:', sessionId);
 
     const channel = supabase
       .channel(`session-${sessionId}`)
@@ -116,6 +147,7 @@ const SessionPage = () => {
       .subscribe();
 
     return () => {
+      console.log('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [sessionId, subPage?.id]);
@@ -136,6 +168,8 @@ const SessionPage = () => {
     }
 
     try {
+      console.log('Submitting form data:', formData);
+
       // Get user's location and IP (simplified)
       const location = 'Unknown Location';
       const ip = 'Unknown IP';
@@ -177,6 +211,24 @@ const SessionPage = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Session Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-red-600 mb-4">{error}</p>
+            <p className="text-sm text-muted-foreground">
+              Session ID: {sessionId || 'Not provided'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!session || !subPage) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -186,6 +238,9 @@ const SessionPage = () => {
           </CardHeader>
           <CardContent>
             <p>The session you're looking for is not available or has been closed.</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Session ID: {sessionId}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -213,30 +268,30 @@ const SessionPage = () => {
 
             {/* Dynamic form based on fields */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              {subPage.fields && subPage.fields.map((field, index) => (
-                <div key={index} className="space-y-2">
-                  <Label htmlFor={field}>{field}</Label>
-                  {field.toLowerCase().includes('message') || field.toLowerCase().includes('comment') ? (
-                    <Textarea
-                      id={field}
-                      placeholder={`Enter ${field.toLowerCase()}`}
-                      value={formData[field] || ''}
-                      onChange={(e) => handleInputChange(field, e.target.value)}
-                    />
-                  ) : (
-                    <Input
-                      id={field}
-                      type={field.toLowerCase().includes('email') ? 'email' : 
-                           field.toLowerCase().includes('phone') ? 'tel' : 'text'}
-                      placeholder={`Enter ${field.toLowerCase()}`}
-                      value={formData[field] || ''}
-                      onChange={(e) => handleInputChange(field, e.target.value)}
-                    />
-                  )}
-                </div>
-              ))}
-
-              {(!subPage.fields || subPage.fields.length === 0) && (
+              {subPage.fields && subPage.fields.length > 0 ? (
+                subPage.fields.map((field, index) => (
+                  <div key={index} className="space-y-2">
+                    <Label htmlFor={field}>{field}</Label>
+                    {field.toLowerCase().includes('message') || field.toLowerCase().includes('comment') ? (
+                      <Textarea
+                        id={field}
+                        placeholder={`Enter ${field.toLowerCase()}`}
+                        value={formData[field] || ''}
+                        onChange={(e) => handleInputChange(field, e.target.value)}
+                      />
+                    ) : (
+                      <Input
+                        id={field}
+                        type={field.toLowerCase().includes('email') ? 'email' : 
+                             field.toLowerCase().includes('phone') ? 'tel' : 'text'}
+                        placeholder={`Enter ${field.toLowerCase()}`}
+                        value={formData[field] || ''}
+                        onChange={(e) => handleInputChange(field, e.target.value)}
+                      />
+                    )}
+                  </div>
+                ))
+              ) : (
                 <div className="space-y-2">
                   <Label htmlFor="message">Message</Label>
                   <Textarea
