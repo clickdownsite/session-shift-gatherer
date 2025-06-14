@@ -1,11 +1,20 @@
 
 import React from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const SessionLoading = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-      <p>Loading page...</p>
+  <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+    <div className="space-y-6">
+      <Skeleton className="h-12 w-1/3" />
+      <div className="space-y-3">
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-5/6" />
+        <Skeleton className="h-6 w-3/4" />
+      </div>
+      <div className="pt-8 space-y-4">
+        <Skeleton className="h-10 w-1/4" />
+        <Skeleton className="h-10 w-full" />
+      </div>
     </div>
   </div>
 );

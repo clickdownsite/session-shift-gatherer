@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -161,9 +160,37 @@ export const useSupabaseSessions = () => {
       
       if (error) throw error;
     },
+    onMutate: async (sessionId: string) => {
+      await queryClient.cancelQueries({ queryKey: ['sessions', user?.id] });
+
+      const previousSessions = queryClient.getQueryData<Session[]>(['sessions', user?.id]);
+
+      queryClient.setQueryData<Session[]>(
+        ['sessions', user?.id],
+        (old) => old?.filter((session) => session.id !== sessionId) ?? []
+      );
+
+      return { previousSessions };
+    },
+    onError: (error, sessionId, context) => {
+      if (context?.previousSessions) {
+        queryClient.setQueryData(['sessions', user?.id], context.previousSessions);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to close session: " + error.message,
+        variant: "destructive"
+      });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
-    }
+      toast({
+        title: "Session Closed",
+        description: "The session has been marked as inactive."
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions', user?.id] });
+    },
   });
 
   return {
