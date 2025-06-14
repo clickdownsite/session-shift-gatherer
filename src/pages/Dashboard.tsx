@@ -80,9 +80,6 @@ const Dashboard = () => {
   
   const handleCloseSession = (sessionId: string) => {
     closeSession(sessionId);
-    toast.success("Session Closed", {
-      description: `Session ${sessionId} has been closed.`
-    });
   };
 
   const handleSignOut = async () => {

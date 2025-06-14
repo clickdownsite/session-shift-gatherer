@@ -90,7 +90,7 @@ export const useSessions = () => {
     mutationFn: async (sessionId: string) => {
       const { error } = await supabase
         .from('sessions')
-        .update({ active: false })
+        .update({ active: false, updated_at: new Date().toISOString() })
         .eq('id', sessionId);
       if (error) throw error;
     },
@@ -118,6 +118,7 @@ export const useSessions = () => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['historical_sessions', user?.id] });
     },
   });
 
@@ -128,4 +129,24 @@ export const useSessions = () => {
     updateSession: updateSessionMutation.mutate,
     closeSession: closeSessionMutation.mutate,
   };
+};
+
+export const useHistoricalSessions = () => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['historical_sessions', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('active', false)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return data as Session[];
+    },
+    enabled: !!user,
+  });
 };

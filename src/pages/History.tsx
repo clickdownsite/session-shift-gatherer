@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Download, Copy, Eye } from 'lucide-react';
@@ -9,17 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/sonner';
 import { useSessionData } from '@/hooks/useSupabaseSession';
+import { useHistoricalSessions } from '@/hooks/useSessions';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const History = () => {
-  const { sessions, exportSessionData, getMainPageById } = useSessionContext();
+  const { exportSessionData, getMainPageById } = useSessionContext();
   const [viewingSessionData, setViewingSessionData] = useState<{ 
     sessionId: string
   } | null>(null);
   
   const { sessionData } = useSessionData(viewingSessionData?.sessionId);
-  
-  // For now, show all sessions as historical (in a real app, you'd filter by closed sessions)
-  const historicalSessions = sessions;
+  const { data: historicalSessions = [], isLoading } = useHistoricalSessions();
   
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -49,12 +48,24 @@ const History = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Session History</h1>
-          <p className="text-muted-foreground">View and analyze your sessions</p>
+          <p className="text-muted-foreground">View and analyze your past sessions</p>
         </div>
       </div>
       
       <div className="mb-8">
-        {historicalSessions.length === 0 ? (
+        {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i}>
+                  <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
+                  <CardContent className="space-y-4">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-10 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+        ) : historicalSessions.length === 0 ? (
           <div className="bg-card rounded-lg p-8 text-center border">
             <div className="mb-4 text-muted-foreground">
               <Calendar className="h-12 w-12 mx-auto" />
