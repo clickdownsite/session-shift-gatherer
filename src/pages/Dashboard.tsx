@@ -39,7 +39,7 @@ const Dashboard = () => {
   // Show notifications for new data
   useEffect(() => {
     sessions.forEach(session => {
-      if (session.hasNewData) {
+      if (session.has_new_data) {
         toast("New Data Received", {
           description: `New data has been captured for session ${session.id}`,
           icon: <Bell className="h-4 w-4" />
@@ -69,7 +69,7 @@ const Dashboard = () => {
     const session = sessions.find(s => s.id === sessionId);
     if (!session) return;
     
-    const mainPage = getMainPageById(session.mainPageId);
+    const mainPage = getMainPageById(session.main_page_id);
     const newSubPage = mainPage?.subPages?.find(sp => sp.id === newSubPageId);
     
     switchSubPage(sessionId, newSubPageId);
@@ -144,9 +144,9 @@ const Dashboard = () => {
           <ScrollArea className="w-full whitespace-nowrap rounded-md border">
             <div className="flex p-4 gap-4">
               {sessions.map((session) => {
-                const mainPage = getMainPageById(session.mainPageId);
+                const mainPage = getMainPageById(session.main_page_id);
                 const currentSubPage = mainPage?.subPages?.find(
-                  sp => sp.id === session.currentSubPageId
+                  sp => sp.id === session.current_sub_page_id
                 );
                 const mainName = mainPage?.name || 'Unknown';
                 const subName = currentSubPage?.name || 'Unknown';
@@ -170,7 +170,7 @@ const Dashboard = () => {
                       </Button>
                       <div className="pr-6 flex items-center justify-between">
                         <CardTitle className="text-lg">Session: {session.id}</CardTitle>
-                        {session.hasNewData && (
+                        {session.has_new_data && (
                           <Bell className="h-4 w-4 text-primary animate-pulse" />
                         )}
                       </div>
@@ -209,7 +209,7 @@ const Dashboard = () => {
                           <div className="text-sm font-medium">Sub Page:</div>
                           <div className="mt-1">
                             <Select 
-                              value={session.currentSubPageId} 
+                              value={session.current_sub_page_id} 
                               onValueChange={(value) => handleSwitchSubPage(session.id, value)}
                             >
                               <SelectTrigger className="w-[130px] h-8 text-xs">
