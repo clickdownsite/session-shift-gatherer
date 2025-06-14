@@ -14,12 +14,18 @@ const SessionPage = () => {
     error, 
   } = useSessionPageData(sessionId);
 
+  console.log('SessionPage render:', { sessionId, loading, error, currentSubPage });
+
   if (loading) {
     return <SessionLoading />;
   }
 
   if (error) {
     return <SessionError error={error} sessionId={sessionId} />;
+  }
+
+  if (!currentSubPage) {
+    return <SessionError error="No page content found" sessionId={sessionId} />;
   }
 
   return (

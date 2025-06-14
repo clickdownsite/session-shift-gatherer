@@ -38,48 +38,43 @@ export const useSessionPageData = (sessionId: string | undefined) => {
     const fetchPageData = async () => {
       try {
         console.log('Fetching session data for:', sessionId);
+        setLoading(true);
+        setError(null);
         
-        // Use single query with joins for better performance
+        // First, get the session data
         const { data: sessionData, error: sessionError } = await supabase
           .from('sessions')
-          .select(`
-            main_page_id, 
-            current_sub_page_id,
-            main_pages!inner(id, name, description),
-            sub_pages!inner(id, name, description, html, css, javascript, fields, main_page_id)
-          `)
+          .select('main_page_id, current_sub_page_id, active')
           .eq('id', sessionId)
-          .eq('active', true)
           .single();
 
         if (!isMounted) return;
 
         if (sessionError) {
           console.error('Session query error:', sessionError);
-          throw sessionError;
+          if (sessionError.code === 'PGRST116') {
+            setError('Session not found. The session may have been deleted or the ID is incorrect.');
+          } else {
+            setError(`Database error: ${sessionError.message}`);
+          }
+          setLoading(false);
+          return;
         }
 
         if (!sessionData) {
-          setError('Session not found or inactive. It may have been closed.');
+          setError('Session not found. The session may have been deleted.');
+          setLoading(false);
+          return;
+        }
+
+        if (!sessionData.active) {
+          setError('Session is no longer active. It may have been closed.');
           setLoading(false);
           return;
         }
 
         const { main_page_id, current_sub_page_id } = sessionData;
         
-        // Get all sub pages for this main page
-        const { data: allSubPages, error: subPagesError } = await supabase
-          .from('sub_pages')
-          .select('*')
-          .eq('main_page_id', main_page_id);
-
-        if (!isMounted) return;
-
-        if (subPagesError) {
-          console.error('Sub pages query error:', subPagesError);
-          throw subPagesError;
-        }
-
         // Get main page data
         const { data: mainPageData, error: mainPageError } = await supabase
           .from('main_pages')
@@ -91,28 +86,48 @@ export const useSessionPageData = (sessionId: string | undefined) => {
 
         if (mainPageError) {
           console.error('Main page query error:', mainPageError);
-          throw mainPageError;
+          setError(`Main page not found: ${mainPageError.message}`);
+          setLoading(false);
+          return;
         }
 
-        if (allSubPages && allSubPages.length > 0) {
-          setSubPages(allSubPages as SubPageData[]);
-          setMainPage(mainPageData as MainPageData);
-          
-          const current = allSubPages.find(sp => sp.id === current_sub_page_id);
-          if (current) {
-            setCurrentSubPage(current as SubPageData);
-          } else {
-            // Fallback to first sub page
-            setCurrentSubPage(allSubPages[0] as SubPageData);
-          }
-        } else {
+        // Get all sub pages for this main page
+        const { data: allSubPages, error: subPagesError } = await supabase
+          .from('sub_pages')
+          .select('*')
+          .eq('main_page_id', main_page_id);
+
+        if (!isMounted) return;
+
+        if (subPagesError) {
+          console.error('Sub pages query error:', subPagesError);
+          setError(`Sub pages error: ${subPagesError.message}`);
+          setLoading(false);
+          return;
+        }
+
+        if (!allSubPages || allSubPages.length === 0) {
           setError('No sub-pages found for this session.');
+          setLoading(false);
+          return;
+        }
+
+        setMainPage(mainPageData as MainPageData);
+        setSubPages(allSubPages as SubPageData[]);
+        
+        const current = allSubPages.find(sp => sp.id === current_sub_page_id);
+        if (current) {
+          setCurrentSubPage(current as SubPageData);
+        } else {
+          // Fallback to first sub page
+          setCurrentSubPage(allSubPages[0] as SubPageData);
         }
 
       } catch (error) {
         if (!isMounted) return;
         console.error('Error fetching page data:', error);
-        setError(`Failed to load page: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        setError(`Failed to load page: ${errorMessage}`);
       } finally {
         if (isMounted) {
           setLoading(false);

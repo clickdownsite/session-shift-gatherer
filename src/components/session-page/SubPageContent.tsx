@@ -1,39 +1,21 @@
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { SubPageData } from '@/hooks/useSessionPageData';
+import { useSessionOptions } from '@/hooks/useSessionOptions';
 
 interface SubPageContentProps {
   sessionId: string | undefined;
   currentSubPage: SubPageData | null;
 }
 
-const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
+const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContentProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [sessionOptions, setSessionOptions] = useState<any>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
+  const { sessionOptions } = useSessionOptions(sessionId);
 
-  // Memoize session options fetch
-  const fetchSessionOptions = useCallback(async () => {
-    if (!sessionId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('sessions')
-        .select('session_options')
-        .eq('id', sessionId)
-        .single();
-      
-      if (error) throw error;
-      setSessionOptions(data?.session_options || {});
-    } catch (error) {
-      console.error("Error fetching session options:", error);
-      setSessionOptions({});
-    }
-  }, [sessionId]);
-
-  // Memoize submit function
+  // Memoize submit function to prevent recreation on every render
   const submitSessionData = useCallback(async (formDataToSubmit: Record<string, string>) => {
     if (!formDataToSubmit || Object.keys(formDataToSubmit).length === 0) {
       toast.error('No data provided to submit.');
@@ -83,24 +65,23 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
     }
   }, [sessionId, sessionOptions]);
 
-  // Fetch session options on mount
-  useEffect(() => {
-    fetchSessionOptions();
-  }, [fetchSessionOptions]);
+  // Memoize JavaScript content to prevent unnecessary script injections
+  const javascriptContent = useMemo(() => currentSubPage?.javascript || '', [currentSubPage?.javascript]);
 
-  // Handle JavaScript injection with cleanup
+  // Handle JavaScript injection with cleanup - only when content changes
   useEffect(() => {
-    if (!currentSubPage?.javascript) return;
+    if (!javascriptContent) return;
 
     try {
       // Clean up previous script
       if (scriptRef.current) {
         document.head.removeChild(scriptRef.current);
+        scriptRef.current = null;
       }
 
       // Create and inject new script
       const script = document.createElement('script');
-      script.textContent = currentSubPage.javascript;
+      script.textContent = javascriptContent;
       document.head.appendChild(script);
       scriptRef.current = script;
       
@@ -117,9 +98,9 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
     } catch (error) {
       console.error('Error executing custom JavaScript:', error);
     }
-  }, [currentSubPage?.javascript]);
+  }, [javascriptContent]);
 
-  // Set up global submit function
+  // Set up global submit function only when sessionOptions are loaded
   useEffect(() => {
     if (sessionOptions === null) return;
 
@@ -132,34 +113,35 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
     };
   }, [submitSessionData, sessionOptions]);
 
-  // Handle form auto-submission
+  // Memoize form handler to prevent recreation
+  const handleSubmit = useCallback((event: Event) => {
+    const form = event.target as HTMLFormElement;
+
+    if (form && form.tagName === 'FORM' && !form.hasAttribute('data-no-auto-submit')) {
+      event.preventDefault();
+      console.log('Auto-capturing form submission...');
+
+      const formData = new FormData(form);
+      const dataToSubmit: Record<string, string> = {};
+      formData.forEach((value, key) => {
+        if (typeof value === 'string') {
+          dataToSubmit[key] = value;
+        }
+      });
+
+      if (Object.keys(dataToSubmit).length === 0) {
+        console.warn('Form has no data to submit.');
+        return;
+      }
+
+      submitSessionData(dataToSubmit);
+    }
+  }, [submitSessionData]);
+
+  // Handle form auto-submission with optimized event handling
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
-    const handleSubmit = (event: Event) => {
-      const form = event.target as HTMLFormElement;
-
-      if (form && form.tagName === 'FORM' && !form.hasAttribute('data-no-auto-submit')) {
-        event.preventDefault();
-        console.log('Auto-capturing form submission...');
-
-        const formData = new FormData(form);
-        const dataToSubmit: Record<string, string> = {};
-        formData.forEach((value, key) => {
-          if (typeof value === 'string') {
-            dataToSubmit[key] = value;
-          }
-        });
-
-        if (Object.keys(dataToSubmit).length === 0) {
-          console.warn('Form has no data to submit.');
-          return;
-        }
-
-        submitSessionData(dataToSubmit);
-      }
-    };
 
     container.addEventListener('submit', handleSubmit);
 
@@ -168,23 +150,29 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
         container.removeEventListener('submit', handleSubmit);
       }
     };
-  }, [currentSubPage, submitSessionData]);
+  }, [handleSubmit]);
+
+  // Memoize CSS and HTML content
+  const cssContent = useMemo(() => currentSubPage?.css || '', [currentSubPage?.css]);
+  const htmlContent = useMemo(() => currentSubPage?.html || '', [currentSubPage?.html]);
 
   if (!currentSubPage) return null;
 
   return (
     <>
-      {currentSubPage.css && (
-        <style dangerouslySetInnerHTML={{ __html: currentSubPage.css }} />
+      {cssContent && (
+        <style dangerouslySetInnerHTML={{ __html: cssContent }} />
       )}
-      {currentSubPage.html && (
+      {htmlContent && (
         <div
           ref={containerRef}
-          dangerouslySetInnerHTML={{ __html: currentSubPage.html }}
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
       )}
     </>
   );
-};
+});
+
+SubPageContent.displayName = 'SubPageContent';
 
 export default SubPageContent;
