@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import StaticForms from "./pages/StaticForms";
 import StaticFormPage from "./pages/StaticFormPage";
+import SessionPage from "./pages/SessionPage";
 import Analytics from "./pages/Analytics";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
@@ -51,6 +52,7 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/form/:formId" element={<StaticFormPage />} />
+                  <Route path="/page/:sessionId" element={<SessionPage />} />
                   
                   {/* Admin Routes */}
                   <Route path="/admin/login" element={<AdminLogin />} />
