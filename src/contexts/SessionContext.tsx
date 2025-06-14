@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -75,13 +74,22 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { sessions, mainPages, subPages, createSession, updateSession, closeSession: closeSessionDB } = useSupabaseSessions();
+  const channelRef = useRef<any>(null);
 
-  // Set up realtime subscriptions
+  // Set up realtime subscriptions with proper cleanup
   useEffect(() => {
     if (!user) return;
 
+    // Clean up existing channel if it exists
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    // Create new channel with unique name
+    const channelName = `session-changes-${user.id}-${Date.now()}`;
     const channel = supabase
-      .channel('session-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -95,13 +103,22 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
             description: `New form submission received for session`,
           });
         }
-      )
-      .subscribe();
+      );
+
+    // Subscribe and store reference
+    channel.subscribe((status) => {
+      console.log('Channel subscription status:', status);
+    });
+    
+    channelRef.current = channel;
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
-  }, [user]);
+  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-subscriptions
 
   // Transform Supabase data to match expected format
   const transformedMainPages = mainPages.map(page => ({
