@@ -8,6 +8,7 @@ export const useSessionOptions = (sessionId: string | undefined) => {
 
   const fetchSessionOptions = useCallback(async () => {
     if (!sessionId) {
+      setSessionOptions({});
       setLoading(false);
       return;
     }
@@ -18,7 +19,7 @@ export const useSessionOptions = (sessionId: string | undefined) => {
         .from('sessions')
         .select('session_options')
         .eq('id', sessionId)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error('Error fetching session options:', error);

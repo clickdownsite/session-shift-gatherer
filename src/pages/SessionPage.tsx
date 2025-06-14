@@ -12,24 +12,45 @@ const SessionPage = () => {
     currentSubPage, 
     loading, 
     error, 
+    refetch
   } = useSessionPageData(sessionId);
 
-  console.log('SessionPage render:', { sessionId, loading, error, currentSubPage });
+  console.log('SessionPage render:', { 
+    sessionId, 
+    loading, 
+    error, 
+    hasSubPage: !!currentSubPage,
+    subPageId: currentSubPage?.id
+  });
 
   if (loading) {
     return <SessionLoading />;
   }
 
   if (error) {
-    return <SessionError error={error} sessionId={sessionId} />;
+    return (
+      <SessionError 
+        error={error} 
+        sessionId={sessionId} 
+        onRetry={refetch}
+      />
+    );
   }
 
   if (!currentSubPage) {
-    return <SessionError error="No page content found" sessionId={sessionId} />;
+    return (
+      <SessionError 
+        error="No page content found" 
+        sessionId={sessionId} 
+        onRetry={refetch}
+      />
+    );
   }
 
   return (
-    <SubPageContent sessionId={sessionId} currentSubPage={currentSubPage} />
+    <div className="min-h-screen w-full">
+      <SubPageContent sessionId={sessionId} currentSubPage={currentSubPage} />
+    </div>
   );
 };
 

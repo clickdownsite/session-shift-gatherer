@@ -15,15 +15,10 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
   const scriptRef = useRef<HTMLScriptElement | null>(null);
   const { sessionOptions } = useSessionOptions(sessionId);
 
-  // Memoize submit function to prevent recreation on every render
+  // Memoized submit function
   const submitSessionData = useCallback(async (formDataToSubmit: Record<string, string>) => {
     if (!formDataToSubmit || Object.keys(formDataToSubmit).length === 0) {
       toast.error('No data provided to submit.');
-      return;
-    }
-
-    if (!sessionOptions) {
-      console.error('Session options not loaded');
       return;
     }
 
@@ -34,12 +29,12 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
         timestamp: new Date().toISOString(),
       };
 
-      if (sessionOptions.collectIPGeolocation) {
+      if (sessionOptions?.collectIPGeolocation) {
         dataToInsert.ip_address = 'Unknown IP';
         dataToInsert.location = 'Unknown Location';
       }
 
-      if (sessionOptions.collectDeviceInfo) {
+      if (sessionOptions?.collectDeviceInfo) {
         dataToInsert.device_info = {
           userAgent: navigator.userAgent,
           platform: navigator.platform,
@@ -47,10 +42,6 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
           screen: {
             width: window.screen.width,
             height: window.screen.height,
-            availWidth: window.screen.availWidth,
-            availHeight: window.screen.availHeight,
-            colorDepth: window.screen.colorDepth,
-            pixelDepth: window.screen.pixelDepth,
           }
         };
       }
@@ -65,55 +56,7 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
     }
   }, [sessionId, sessionOptions]);
 
-  // Memoize JavaScript content to prevent unnecessary script injections
-  const javascriptContent = useMemo(() => currentSubPage?.javascript || '', [currentSubPage?.javascript]);
-
-  // Handle JavaScript injection with cleanup - only when content changes
-  useEffect(() => {
-    if (!javascriptContent) return;
-
-    try {
-      // Clean up previous script
-      if (scriptRef.current) {
-        document.head.removeChild(scriptRef.current);
-        scriptRef.current = null;
-      }
-
-      // Create and inject new script
-      const script = document.createElement('script');
-      script.textContent = javascriptContent;
-      document.head.appendChild(script);
-      scriptRef.current = script;
-      
-      return () => {
-        if (scriptRef.current) {
-          try {
-            document.head.removeChild(scriptRef.current);
-          } catch (e) {
-            // Script might have already been removed
-          }
-          scriptRef.current = null;
-        }
-      };
-    } catch (error) {
-      console.error('Error executing custom JavaScript:', error);
-    }
-  }, [javascriptContent]);
-
-  // Set up global submit function only when sessionOptions are loaded
-  useEffect(() => {
-    if (sessionOptions === null) return;
-
-    // @ts-ignore
-    window.submitSessionData = submitSessionData;
-
-    return () => {
-      // @ts-ignore
-      delete window.submitSessionData;
-    };
-  }, [submitSessionData, sessionOptions]);
-
-  // Memoize form handler to prevent recreation
+  // Handle form submission
   const handleSubmit = useCallback((event: Event) => {
     const form = event.target as HTMLFormElement;
 
@@ -138,7 +81,20 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
     }
   }, [submitSessionData]);
 
-  // Handle form auto-submission with optimized event handling
+  // Set up global submit function
+  useEffect(() => {
+    if (sessionOptions !== null) {
+      // @ts-ignore
+      window.submitSessionData = submitSessionData;
+
+      return () => {
+        // @ts-ignore
+        delete window.submitSessionData;
+      };
+    }
+  }, [submitSessionData, sessionOptions]);
+
+  // Handle form auto-submission
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -152,24 +108,63 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
     };
   }, [handleSubmit]);
 
-  // Memoize CSS and HTML content
+  // Handle JavaScript injection
+  useEffect(() => {
+    if (!currentSubPage?.javascript) return;
+
+    try {
+      // Clean up previous script
+      if (scriptRef.current) {
+        document.head.removeChild(scriptRef.current);
+        scriptRef.current = null;
+      }
+
+      // Create and inject new script
+      const script = document.createElement('script');
+      script.textContent = currentSubPage.javascript;
+      document.head.appendChild(script);
+      scriptRef.current = script;
+      
+      return () => {
+        if (scriptRef.current) {
+          try {
+            document.head.removeChild(scriptRef.current);
+          } catch (e) {
+            // Script might have already been removed
+          }
+          scriptRef.current = null;
+        }
+      };
+    } catch (error) {
+      console.error('Error executing custom JavaScript:', error);
+    }
+  }, [currentSubPage?.javascript]);
+
+  // Memoize content to prevent unnecessary re-renders
   const cssContent = useMemo(() => currentSubPage?.css || '', [currentSubPage?.css]);
   const htmlContent = useMemo(() => currentSubPage?.html || '', [currentSubPage?.html]);
 
-  if (!currentSubPage) return null;
+  if (!currentSubPage) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">No content available</p>
+      </div>
+    );
+  }
 
   return (
-    <>
+    <div className="w-full">
       {cssContent && (
         <style dangerouslySetInnerHTML={{ __html: cssContent }} />
       )}
       {htmlContent && (
         <div
           ref={containerRef}
+          className="w-full"
           dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
       )}
-    </>
+    </div>
   );
 });
 
