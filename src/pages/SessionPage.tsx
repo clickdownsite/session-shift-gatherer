@@ -8,6 +8,9 @@ import SubPageContent from '@/components/session-page/SubPageContent';
 
 const SessionPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
+  
+  console.log('SessionPage render with sessionId from params:', sessionId);
+  
   const { 
     currentSubPage, 
     loading, 
@@ -15,19 +18,22 @@ const SessionPage = () => {
     refetch
   } = useSessionPageData(sessionId);
 
-  console.log('SessionPage render:', { 
+  console.log('SessionPage render state:', { 
     sessionId, 
     loading, 
     error, 
     hasSubPage: !!currentSubPage,
-    subPageId: currentSubPage?.id
+    subPageId: currentSubPage?.id,
+    subPageName: currentSubPage?.name
   });
 
   if (loading) {
+    console.log('Showing loading state');
     return <SessionLoading />;
   }
 
   if (error) {
+    console.log('Showing error state:', error);
     return (
       <SessionError 
         error={error} 
@@ -38,6 +44,7 @@ const SessionPage = () => {
   }
 
   if (!currentSubPage) {
+    console.log('No sub page found, showing error');
     return (
       <SessionError 
         error="No page content found" 
@@ -46,6 +53,13 @@ const SessionPage = () => {
       />
     );
   }
+
+  console.log('Rendering SubPageContent with:', {
+    sessionId,
+    subPageId: currentSubPage.id,
+    hasHtml: !!currentSubPage.html,
+    hasCss: !!currentSubPage.css
+  });
 
   return (
     <div className="min-h-screen w-full">
