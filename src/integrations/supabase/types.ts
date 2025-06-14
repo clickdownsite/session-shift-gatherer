@@ -9,6 +9,279 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ab_test_assignments: {
+        Row: {
+          assigned_at: string
+          id: string
+          session_id: string | null
+          test_id: string | null
+          variant_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          id?: string
+          session_id?: string | null
+          test_id?: string | null
+          variant_id: string
+        }
+        Update: {
+          assigned_at?: string
+          id?: string
+          session_id?: string | null
+          test_id?: string | null
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ab_test_assignments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ab_test_assignments_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "ab_tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ab_tests: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          target_pages: string[] | null
+          traffic_split: Json
+          updated_at: string
+          variants: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          target_pages?: string[] | null
+          traffic_split: Json
+          updated_at?: string
+          variants: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          target_pages?: string[] | null
+          traffic_split?: Json
+          updated_at?: string
+          variants?: Json
+        }
+        Relationships: []
+      }
+      conversion_events: {
+        Row: {
+          ab_test_id: string | null
+          event_data: Json | null
+          goal_id: string | null
+          id: string
+          occurred_at: string
+          session_id: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          ab_test_id?: string | null
+          event_data?: Json | null
+          goal_id?: string | null
+          id?: string
+          occurred_at?: string
+          session_id?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          ab_test_id?: string | null
+          event_data?: Json | null
+          goal_id?: string | null
+          id?: string
+          occurred_at?: string
+          session_id?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversion_events_ab_test_id_fkey"
+            columns: ["ab_test_id"]
+            isOneToOne: false
+            referencedRelation: "ab_tests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversion_events_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "conversion_goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversion_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversion_goals: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          goal_type: string
+          id: string
+          name: string
+          target_selector: string | null
+          target_value: Json | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          goal_type: string
+          id?: string
+          name: string
+          target_selector?: string | null
+          target_value?: Json | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          goal_type?: string
+          id?: string
+          name?: string
+          target_selector?: string | null
+          target_value?: Json | null
+        }
+        Relationships: []
+      }
+      heatmap_data: {
+        Row: {
+          coordinates: Json
+          count: number
+          created_at: string
+          element_selector: string | null
+          id: string
+          interaction_type: string
+          last_updated: string
+          page_url: string
+        }
+        Insert: {
+          coordinates: Json
+          count?: number
+          created_at?: string
+          element_selector?: string | null
+          id?: string
+          interaction_type: string
+          last_updated?: string
+          page_url: string
+        }
+        Update: {
+          coordinates?: Json
+          count?: number
+          created_at?: string
+          element_selector?: string | null
+          id?: string
+          interaction_type?: string
+          last_updated?: string
+          page_url?: string
+        }
+        Relationships: []
+      }
+      live_interactions: {
+        Row: {
+          coordinates: Json | null
+          created_at: string
+          data: Json | null
+          element_content: string | null
+          element_selector: string | null
+          id: string
+          interaction_type: string
+          session_id: string | null
+          timestamp_offset: number
+        }
+        Insert: {
+          coordinates?: Json | null
+          created_at?: string
+          data?: Json | null
+          element_content?: string | null
+          element_selector?: string | null
+          id?: string
+          interaction_type: string
+          session_id?: string | null
+          timestamp_offset: number
+        }
+        Update: {
+          coordinates?: Json | null
+          created_at?: string
+          data?: Json | null
+          element_content?: string | null
+          element_selector?: string | null
+          id?: string
+          interaction_type?: string
+          session_id?: string | null
+          timestamp_offset?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_interactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_sessions: {
+        Row: {
+          ended_at: string | null
+          id: string
+          is_active: boolean
+          metadata: Json | null
+          page_url: string
+          session_token: string
+          started_at: string
+          user_id: string | null
+        }
+        Insert: {
+          ended_at?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          page_url: string
+          session_token: string
+          started_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          ended_at?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          page_url?: string
+          session_token?: string
+          started_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       main_pages: {
         Row: {
           created_at: string | null
@@ -121,6 +394,44 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_recordings: {
+        Row: {
+          created_at: string
+          data: Json
+          file_path: string | null
+          id: string
+          recording_type: string
+          session_id: string | null
+          timestamp_offset: number
+        }
+        Insert: {
+          created_at?: string
+          data: Json
+          file_path?: string | null
+          id?: string
+          recording_type: string
+          session_id?: string | null
+          timestamp_offset: number
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          file_path?: string | null
+          id?: string
+          recording_type?: string
+          session_id?: string | null
+          timestamp_offset?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_recordings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
             referencedColumns: ["id"]
           },
         ]
