@@ -75,7 +75,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const queryClient = useQueryClient();
   const { sessions, mainPages, subPages, createSession, updateSession, closeSession: closeSessionDB } = useSupabaseSessions();
   const channelRef = useRef<any>(null);
-  const subscriptionStatusRef = useRef<string>('UNSUBSCRIBED');
 
   // Set up realtime subscriptions with proper cleanup and error handling
   useEffect(() => {
@@ -85,29 +84,20 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.log('Cleaning up channel due to no user');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
-        subscriptionStatusRef.current = 'UNSUBSCRIBED';
       }
       return;
     }
 
-    // Only create new subscription if we don't have an active one
-    if (subscriptionStatusRef.current === 'SUBSCRIBED') {
-      console.log('Already subscribed, skipping subscription setup');
+    // A channel can only be subscribed to once.
+    // If we already have a channel, we don't need to do anything.
+    if (channelRef.current) {
       return;
     }
 
     console.log('Setting up realtime subscription for user:', user.id);
 
-    // Clean up existing channel if it exists
-    if (channelRef.current) {
-      console.log('Cleaning up existing channel');
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-      subscriptionStatusRef.current = 'UNSUBSCRIBED';
-    }
-
-    // Create new channel with unique name
-    const channelName = `session-data-changes-${user.id}-${Date.now()}`;
+    // Create new channel with a stable name
+    const channelName = `session-data-changes-${user.id}`;
     console.log('Creating channel:', channelName);
     
     const channel = supabase
@@ -135,13 +125,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Subscribe and store reference
     channel.subscribe((status) => {
       console.log('Channel subscription status:', status);
-      subscriptionStatusRef.current = status;
       
       if (status === 'SUBSCRIBED') {
         console.log('Successfully subscribed to realtime updates');
       } else if (status === 'CHANNEL_ERROR') {
         console.error('Failed to subscribe to realtime updates');
-        subscriptionStatusRef.current = 'UNSUBSCRIBED';
       }
     });
     
@@ -152,10 +140,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
-        subscriptionStatusRef.current = 'UNSUBSCRIBED';
       }
     };
-  }, [user?.id, queryClient]);
+  }, [user, queryClient]);
 
   // Transform Supabase data to match expected format with better error handling
   const transformedMainPages = React.useMemo(() => {
