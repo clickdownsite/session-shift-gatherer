@@ -156,7 +156,7 @@ const Dashboard = () => {
                     key={session.id} 
                     className={cn(
                       "session-card min-w-[300px] max-w-[350px]",
-                      session.hasNewData && "animate-pulse border-primary"
+                      session.has_new_data && "animate-pulse border-primary"
                     )}
                   >
                     <CardHeader className="pb-3 relative">
@@ -202,9 +202,7 @@ const Dashboard = () => {
                         <div>
                           <div className="text-sm font-medium">Data captured:</div>
                           <div className="mt-1">
-                            <Badge variant="outline">
-                              {session.data.length} {session.data.length === 1 ? 'entry' : 'entries'}
-                            </Badge>
+                            {/* TODO: Displaying data entry count requires a more performant query. */}
                           </div>
                         </div>
                         <div>
@@ -235,12 +233,12 @@ const Dashboard = () => {
                         size="sm"
                         onClick={() => viewSessionData(session.id)}
                         className={cn(
-                          session.hasNewData && "animate-pulse border-primary text-primary"
+                          session.has_new_data && "animate-pulse border-primary text-primary"
                         )}
                       >
                         <Eye className={cn(
                           "h-4 w-4 mr-2",
-                          session.hasNewData && "text-primary animate-pulse"
+                          session.has_new_data && "text-primary animate-pulse"
                         )} /> 
                         View Data
                       </Button>

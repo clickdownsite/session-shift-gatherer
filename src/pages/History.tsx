@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Download, Copy, Eye } from 'lucide-react';
@@ -76,21 +77,21 @@ const History = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {historicalSessions.map((session) => {
-              const mainPage = getMainPageById(session.mainPageId);
-              const pageTypeName = mainPage?.name || session.pageType || "Unknown";
+              const mainPage = getMainPageById(session.main_page_id);
+              const pageTypeName = mainPage?.name || session.page_type || "Unknown";
               
               return (
                 <Card key={session.id} className="border shadow-sm">
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-lg font-medium">Session: {session.id}</CardTitle>
-                      <Badge variant={session.mainPageId === 'login' ? 'default' : 'outline'} className={session.mainPageId === 'login' ? 'bg-brand-purple' : ''}>
+                      <Badge variant={session.main_page_id === 'login' ? 'default' : 'outline'} className={session.main_page_id === 'login' ? 'bg-brand-purple' : ''}>
                         {pageTypeName}
                       </Badge>
                     </div>
                     <div className="flex items-center text-xs text-muted-foreground mt-1">
                       <Calendar className="h-3 w-3 mr-1" />
-                      <span>Created {formatDate(session.createdAt)}</span>
+                      <span>Created {formatDate(session.created_at)}</span>
                     </div>
                   </CardHeader>
                   <CardContent className="pb-3">
