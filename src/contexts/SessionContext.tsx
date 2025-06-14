@@ -79,28 +79,34 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Set up realtime subscriptions with proper cleanup and error handling
   useEffect(() => {
     if (!user) {
-      // Clean up if user is not available
       if (channelRef.current) {
-        console.log('Cleaning up channel due to no user');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
       return;
     }
 
-    // If channel exists and is already joined or joining, we're good.
-    if (channelRef.current && (channelRef.current.state === 'joined' || channelRef.current.state === 'joining')) {
-      console.log('Channel subscription is active, no need to re-subscribe.');
+    const channelName = `session-data-changes-${user.id}`;
+    
+    // Find if a channel with this name already exists
+    let channel = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
+
+    // If channel exists and is subscribed, we're good
+    if (channel && (channel.state === 'joined' || channel.state === 'joining')) {
+      console.log('Channel subscription is already active.');
+      channelRef.current = channel; // make sure our ref is up to date
       return;
     }
-
-    console.log('Setting up realtime subscription for user:', user.id);
-
-    // Create new channel with a stable name
-    const channelName = `session-data-changes-${user.id}`;
-    console.log('Creating channel:', channelName);
     
-    const channel = supabase
+    // If an old channel exists but is in a bad state, remove it before creating a new one
+    if (channel) {
+      console.log(`Removing existing channel in state: ${channel.state}`);
+      supabase.removeChannel(channel);
+    }
+    
+    console.log('Setting up new realtime subscription.');
+    
+    channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
@@ -112,7 +118,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         (payload) => {
           console.log('New session data received:', payload);
           
-          // Invalidate queries to refresh data
           queryClient.invalidateQueries({ queryKey: ['sessions'] });
           queryClient.invalidateQueries({ queryKey: ['session_data'] });
           
@@ -122,7 +127,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       );
 
-    // Subscribe and store reference
     channel.subscribe((status) => {
       console.log('Channel subscription status:', status);
       
@@ -136,10 +140,14 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     channelRef.current = channel;
 
     return () => {
-      console.log('Cleaning up realtime subscription on unmount/dep change');
-      // We must remove the channel to prevent leaks.
-      // The channel object is captured in the closure of the effect.
-      supabase.removeChannel(channel);
+      const channelToRemove = channel;
+      console.log('Cleaning up realtime subscription on effect cleanup for channel:', channelToRemove.topic);
+      supabase.removeChannel(channelToRemove)
+        .then(status => console.log('Channel removed, status:', status));
+      
+      if (channelRef.current === channelToRemove) {
+          channelRef.current = null;
+      }
     };
   }, [user?.id, queryClient]);
 
