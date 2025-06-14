@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,28 +7,27 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Eye } from 'lucide-react';
-import { useSessionContext } from '@/contexts/SessionContext';
-import { toast } from '@/components/ui/sonner';
+import { Plus, Edit, Trash2, Eye, Loader2 } from 'lucide-react';
+import { useMainPages, useSubPages } from '@/hooks/usePageTemplates';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import FileUpload from '@/components/FileUpload';
+import type { MainPage, SubPage } from '@/types/session';
+
+type MainPageWithSubPages = MainPage & { subPages: SubPage[] };
 
 const AdminPages = () => {
-  const {
-    mainPages,
-    addMainPage,
-    addSubPage,
-    updateMainPage,
-    updateSubPage,
-    deleteMainPage,
-    deleteSubPage
-  } = useSessionContext();
+  const queryClient = useQueryClient();
+  const { data: mainPagesData, isLoading: isLoadingMainPages } = useMainPages();
+  const { data: subPagesData, isLoading: isLoadingSubPages } = useSubPages();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubPageDialogOpen, setIsSubPageDialogOpen] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
-  const [selectedMainPage, setSelectedMainPage] = useState<any>(null);
-  const [selectedSubPage, setSelectedSubPage] = useState<any>(null);
+  const [selectedMainPage, setSelectedMainPage] = useState<MainPageWithSubPages | null>(null);
+  const [selectedSubPage, setSelectedSubPage] = useState<SubPage | null>(null);
   const [previewContent, setPreviewContent] = useState({ html: '', css: '', javascript: '' });
 
   // Form states
@@ -47,6 +46,124 @@ const AdminPages = () => {
   });
 
   const [fieldInput, setFieldInput] = useState('');
+
+  const mainPages: MainPageWithSubPages[] = useMemo(() => {
+    if (!mainPagesData || !subPagesData) return [];
+    return mainPagesData.map(mp => ({
+      ...mp,
+      subPages: subPagesData.filter(sp => sp.main_page_id === mp.id).sort((a,b) => a.name.localeCompare(b.name))
+    }));
+  }, [mainPagesData, subPagesData]);
+
+  const { mutate: addMainPage } = useMutation({
+    mutationFn: async (pageData: { name: string, description: string }) => {
+      const { data, error } = await supabase.from('main_pages').insert({
+          id: `main_page_${Math.random().toString(36).substring(2, 9)}`,
+          name: pageData.name,
+          description: pageData.description
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['main_pages'] });
+        toast.success('Main page created successfully');
+        setIsCreateDialogOpen(false);
+        resetMainPageForm();
+    },
+    onError: (error) => {
+        toast.error(`Failed to create main page: ${error.message}`);
+    }
+  });
+
+  const { mutate: updateMainPage } = useMutation({
+    mutationFn: async (pageData: Partial<MainPage>) => {
+      const { id, ...updates } = pageData;
+      if (!id) throw new Error("ID is required for update");
+      const { data, error } = await supabase.from('main_pages').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['main_pages'] });
+      toast.success('Main page updated successfully');
+      setIsEditDialogOpen(false);
+      resetMainPageForm();
+    },
+    onError: (error) => {
+      toast.error(`Failed to update main page: ${error.message}`);
+    }
+  });
+
+  const { mutate: deleteMainPage } = useMutation({
+    mutationFn: async (mainPageId: string) => {
+      const { error: subPageError } = await supabase.from('sub_pages').delete().eq('main_page_id', mainPageId);
+      if (subPageError) throw subPageError;
+      const { error: mainPageError } = await supabase.from('main_pages').delete().eq('id', mainPageId);
+      if (mainPageError) throw mainPageError;
+    },
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['main_pages'] });
+        queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+        toast.success('Main page and its sub-pages deleted.');
+    },
+    onError: (error) => {
+        toast.error(`Failed to delete main page: ${error.message}`);
+    }
+  });
+
+  const { mutate: addSubPage } = useMutation({
+    mutationFn: async ({ mainPageId, subPageData }: { mainPageId: string, subPageData: typeof subPageForm }) => {
+      const { data, error } = await supabase.from('sub_pages').insert({
+        id: `sub_page_${Math.random().toString(36).substring(2, 9)}`,
+        main_page_id: mainPageId,
+        ...subPageData
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+      toast.success('Sub page created successfully');
+      setIsSubPageDialogOpen(false);
+      resetSubPageForm();
+    },
+    onError: (error) => {
+      toast.error(`Failed to create sub page: ${error.message}`);
+    }
+  });
+
+  const { mutate: updateSubPage } = useMutation({
+    mutationFn: async ({ subPageData }: { subPageData: Partial<SubPage> & {id: string} }) => {
+      const { id, main_page_id, created_at, ...updates } = subPageData;
+      const { data, error } = await supabase.from('sub_pages').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+      toast.success('Sub page updated successfully');
+      setIsSubPageDialogOpen(false);
+      resetSubPageForm();
+    },
+    onError: (error) => {
+      toast.error(`Failed to update sub page: ${error.message}`);
+    }
+  });
+
+  const { mutate: deleteSubPage } = useMutation({
+    mutationFn: async ({ subPageId }: { mainPageId: string, subPageId: string }) => {
+      const { error } = await supabase.from('sub_pages').delete().eq('id', subPageId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
+      toast.success('Sub page deleted successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete sub page: ${error.message}`);
+    }
+  });
 
   const resetMainPageForm = () => {
     setMainPageForm({ name: '', description: '' });
@@ -69,14 +186,7 @@ const AdminPages = () => {
       toast.error('Please enter a page name');
       return;
     }
-
-    try {
-      await addMainPage(mainPageForm);
-      resetMainPageForm();
-      setIsCreateDialogOpen(false);
-    } catch (error) {
-      console.error('Error creating main page:', error);
-    }
+    addMainPage(mainPageForm);
   };
 
   const handleUpdateMainPage = async () => {
@@ -84,28 +194,15 @@ const AdminPages = () => {
       toast.error('Please enter a page name');
       return;
     }
-
-    try {
-      await updateMainPage({
-        ...selectedMainPage,
-        ...mainPageForm
-      });
-      resetMainPageForm();
-      setIsEditDialogOpen(false);
-      setSelectedMainPage(null);
-    } catch (error) {
-      console.error('Error updating main page:', error);
-    }
+    updateMainPage({
+      id: selectedMainPage.id,
+      ...mainPageForm
+    });
   };
 
   const handleDeleteMainPage = async (mainPageId: string) => {
     if (!confirm('Are you sure you want to delete this page and all its sub-pages?')) return;
-
-    try {
-      await deleteMainPage(mainPageId);
-    } catch (error) {
-      console.error('Error deleting main page:', error);
-    }
+    deleteMainPage(mainPageId);
   };
 
   const handleAddField = () => {
@@ -130,14 +227,7 @@ const AdminPages = () => {
       toast.error('Please enter a sub-page name');
       return;
     }
-
-    try {
-      await addSubPage(selectedMainPage.id, subPageForm);
-      resetSubPageForm();
-      setIsSubPageDialogOpen(false);
-    } catch (error) {
-      console.error('Error creating sub page:', error);
-    }
+    addSubPage({ mainPageId: selectedMainPage.id, subPageData: subPageForm });
   };
 
   const handleUpdateSubPage = async () => {
@@ -145,28 +235,17 @@ const AdminPages = () => {
       toast.error('Please enter a sub-page name');
       return;
     }
-
-    try {
-      await updateSubPage(selectedMainPage.id, {
-        ...selectedSubPage,
+    updateSubPage({
+      subPageData: {
+        id: selectedSubPage.id,
         ...subPageForm
-      });
-      resetSubPageForm();
-      setIsSubPageDialogOpen(false);
-      setSelectedSubPage(null);
-    } catch (error) {
-      console.error('Error updating sub page:', error);
-    }
+      }
+    });
   };
 
   const handleDeleteSubPage = async (mainPageId: string, subPageId: string) => {
     if (!confirm('Are you sure you want to delete this sub-page?')) return;
-
-    try {
-      await deleteSubPage(mainPageId, subPageId);
-    } catch (error) {
-      console.error('Error deleting sub page:', error);
-    }
+    deleteSubPage({ mainPageId, subPageId });
   };
 
   const handleFileUpload = (content: string, type: 'html' | 'css' | 'javascript') => {
@@ -213,6 +292,14 @@ const AdminPages = () => {
     });
     setIsSubPageDialogOpen(true);
   };
+
+  if (isLoadingMainPages || isLoadingSubPages) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -291,7 +378,7 @@ const AdminPages = () => {
               <div className="space-y-4">
                 <h4 className="font-semibold">Sub Pages ({mainPage.subPages?.length || 0})</h4>
                 <div className="grid gap-4">
-                  {mainPage.subPages?.map((subPage: any) => (
+                  {mainPage.subPages?.map((subPage: SubPage) => (
                     <Card key={subPage.id} className="border-l-4 border-l-blue-500">
                       <CardContent className="pt-4">
                         <div className="flex justify-between items-start">
