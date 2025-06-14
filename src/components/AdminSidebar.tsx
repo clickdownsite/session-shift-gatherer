@@ -1,13 +1,26 @@
 
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { Settings, Users, LayoutDashboard, FileText, Database, CreditCard, Moon, Sun, LogOut } from 'lucide-react';
+import { Settings, Users, LayoutDashboard, FileText, Database, CreditCard, Moon, Sun, LogOut, ArrowLeft } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar';
+import { useAuth } from '@/hooks/useAuth';
 
 const AdminSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const { state } = useSidebar();
+  const { user } = useAuth();
   
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -28,78 +41,74 @@ const AdminSidebar = () => {
   };
   
   return (
-    <div className="hidden md:flex flex-col bg-sidebar text-sidebar-foreground w-64 p-4 shadow-lg">
-      <div className="px-4 py-5 flex items-center">
-        <h1 className="text-xl font-bold">Admin Panel</h1>
-      </div>
+    <Sidebar>
+      <SidebarHeader className="border-b px-6 py-4">
+        {state !== 'collapsed' ? (
+           <h1 className="text-xl font-bold">Admin Panel</h1>
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center text-white font-semibold text-xl">A</div>
+        )}
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navigation.map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <SidebarMenuItem key={item.name}>
+                    <SidebarMenuButton asChild isActive={isActive}>
+                      <Link to={item.href} className="flex items-center gap-3">
+                        <item.icon className="h-4 w-4" />
+                        {state !== "collapsed" && <span>{item.name}</span>}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
       
-      <div className="mt-10 flex flex-col gap-2">
-        {navigation.map((item) => (
-          <Link
-            key={item.name}
-            to={item.href}
-            className={cn(
-              'flex items-center px-4 py-3 text-sm font-medium rounded-md',
-              location.pathname === item.href
-                ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-            )}
-          >
-            <item.icon className="mr-3 h-5 w-5" />
-            {item.name}
-          </Link>
-        ))}
-      </div>
-      
-      <div className="mt-auto">
-        <Link 
-          to="/"
-          className="flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          ← Back to User Panel
-        </Link>
-      </div>
-      
-      <div className="mt-2 px-4 py-3">
-        <button
-          onClick={toggleTheme}
-          className="w-full flex items-center px-4 py-2 text-sm font-medium rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          {theme === 'dark' ? (
-            <>
-              <Sun className="h-4 w-4 mr-2" />
-              <span>Light Mode</span>
-            </>
-          ) : (
-            <>
-              <Moon className="h-4 w-4 mr-2" />
-              <span>Dark Mode</span>
-            </>
-          )}
-        </button>
-      </div>
-      
-      <div className="mt-2 px-4 py-5">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
+      <div className="mt-auto flex flex-col items-center gap-2 border-t p-2">
+          {/* User info */}
+          <div className="flex w-full items-center p-2">
             <div className="h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center text-white font-semibold">
               A
             </div>
+            {state !== "collapsed" && (
+                <div className="ml-3">
+                  <p className="text-sm font-medium">{user?.user_metadata?.full_name || "Admin"}</p>
+                  <p className="text-xs text-muted-foreground">System Administrator</p>
+                </div>
+            )}
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium">Admin</p>
-            <p className="text-xs text-opacity-90">System Administrator</p>
-          </div>
-        </div>
-        <button
-          onClick={handleSignOut}
-          className="mt-2 w-full flex items-center px-4 py-2 text-sm text-red-400 hover:text-red-300"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign Out
-        </button>
+
+        <SidebarMenu className="w-full">
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link to="/" className="flex w-full items-center gap-3">
+                    <ArrowLeft className="h-4 w-4" />
+                    {state !== "collapsed" && <span>Back to User Panel</span>}
+                  </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <SidebarMenuButton onClick={toggleTheme} className="flex w-full items-center gap-3">
+                    {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                    {state !== 'collapsed' && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleSignOut} className="flex w-full items-center gap-3 text-destructive hover:text-destructive">
+                    <LogOut className="h-4 w-4" />
+                    {state !== 'collapsed' && <span>Sign Out</span>}
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+        </SidebarMenu>
       </div>
-    </div>
+    </Sidebar>
   );
 };
 

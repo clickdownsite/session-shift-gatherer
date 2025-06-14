@@ -2,7 +2,7 @@
 import React from 'react';
 import AdminSidebar from './AdminSidebar';
 import { SessionProvider } from '@/contexts/SessionContext';
-import { AdminMobileNav } from './AdminMobileNav';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -11,13 +11,19 @@ interface AdminLayoutProps {
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   return (
     <SessionProvider>
-      <div className="min-h-screen bg-background flex">
-        <AdminSidebar />
-        <div className="flex-1 p-6 md:p-8 overflow-auto">
-          <AdminMobileNav />
-          {children}
+      <SidebarProvider>
+        <div className="min-h-screen bg-background flex w-full">
+          <AdminSidebar />
+          <SidebarInset>
+            <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+              <SidebarTrigger className="-ml-1" />
+            </header>
+            <main className="flex-1 p-6 md:p-8 overflow-auto">
+              {children}
+            </main>
+          </SidebarInset>
         </div>
-      </div>
+      </SidebarProvider>
     </SessionProvider>
   );
 };
