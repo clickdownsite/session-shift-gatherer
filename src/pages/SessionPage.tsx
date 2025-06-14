@@ -9,11 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/ui/sonner';
 
-interface SessionData {
+interface MainPageData {
   id: string;
-  main_page_id: string;
-  current_sub_page_id: string;
-  active: boolean;
+  name: string;
+  description: string;
 }
 
 interface SubPageData {
@@ -24,133 +23,103 @@ interface SubPageData {
   css: string;
   javascript: string;
   fields: string[];
+  main_page_id: string;
 }
 
 const SessionPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const [session, setSession] = useState<SessionData | null>(null);
-  const [subPage, setSubPage] = useState<SubPageData | null>(null);
+  const [mainPage, setMainPage] = useState<MainPageData | null>(null);
+  const [currentSubPage, setCurrentSubPage] = useState<SubPageData | null>(null);
+  const [subPages, setSubPages] = useState<SubPageData[]>([]);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionId) {
-      setError('No session ID provided');
+      setError('No page ID provided');
       setLoading(false);
       return;
     }
 
-    const fetchSessionData = async () => {
-      console.log('Fetching session data for ID:', sessionId);
+    const fetchPageData = async () => {
+      console.log('Fetching page data for ID:', sessionId);
       
       try {
-        // First, try to fetch session data without the active filter to see if it exists
-        const { data: sessionCheck, error: sessionCheckError } = await supabase
-          .from('sessions')
+        // First, try to fetch as main page
+        const { data: mainPageData, error: mainPageError } = await supabase
+          .from('main_pages')
           .select('*')
-          .eq('id', sessionId);
-
-        console.log('Session check result:', sessionCheck, sessionCheckError);
-
-        if (sessionCheckError) {
-          console.error('Session check error:', sessionCheckError);
-          setError(`Database error: ${sessionCheckError.message}`);
-          return;
-        }
-
-        if (!sessionCheck || sessionCheck.length === 0) {
-          console.log('No session found with ID:', sessionId);
-          setError('Session not found in database');
-          return;
-        }
-
-        const sessionData = sessionCheck[0];
-        console.log('Found session:', sessionData);
-
-        if (!sessionData.active) {
-          console.log('Session is inactive');
-          setError('This session has been closed');
-          return;
-        }
-
-        setSession(sessionData);
-
-        // Fetch current sub page data
-        const { data: subPageData, error: subPageError } = await supabase
-          .from('sub_pages')
-          .select('*')
-          .eq('id', sessionData.current_sub_page_id)
+          .eq('id', sessionId)
           .single();
 
-        console.log('Sub page data:', subPageData, subPageError);
-
-        if (subPageError) {
-          console.error('Sub page error:', subPageError);
-          setError(`Page content error: ${subPageError.message}`);
+        if (mainPageError && mainPageError.code !== 'PGRST116') {
+          console.error('Main page error:', mainPageError);
+          setError(`Database error: ${mainPageError.message}`);
           return;
         }
 
-        if (!subPageData) {
-          setError('Page content not found');
-          return;
-        }
+        if (mainPageData) {
+          console.log('Found main page:', mainPageData);
+          setMainPage(mainPageData);
 
-        setSubPage(subPageData);
+          // Fetch sub pages for this main page
+          const { data: subPagesData, error: subPagesError } = await supabase
+            .from('sub_pages')
+            .select('*')
+            .eq('main_page_id', sessionId);
+
+          if (subPagesError) {
+            console.error('Sub pages error:', subPagesError);
+            setError(`Sub pages error: ${subPagesError.message}`);
+            return;
+          }
+
+          console.log('Found sub pages:', subPagesData);
+          setSubPages(subPagesData || []);
+          
+          // Set the first sub page as current if available
+          if (subPagesData && subPagesData.length > 0) {
+            setCurrentSubPage(subPagesData[0]);
+          }
+        } else {
+          // If not found as main page, try as sub page
+          const { data: subPageData, error: subPageError } = await supabase
+            .from('sub_pages')
+            .select('*')
+            .eq('id', sessionId)
+            .single();
+
+          if (subPageError) {
+            console.error('Sub page error:', subPageError);
+            setError('Page not found');
+            return;
+          }
+
+          console.log('Found sub page:', subPageData);
+          setCurrentSubPage(subPageData);
+
+          // Also fetch the main page info
+          const { data: parentMainPage } = await supabase
+            .from('main_pages')
+            .select('*')
+            .eq('id', subPageData.main_page_id)
+            .single();
+
+          if (parentMainPage) {
+            setMainPage(parentMainPage);
+          }
+        }
       } catch (error) {
-        console.error('Error fetching session:', error);
-        setError(`Failed to load session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error('Error fetching page:', error);
+        setError(`Failed to load page: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSessionData();
+    fetchPageData();
   }, [sessionId]);
-
-  // Set up real-time subscription for session updates
-  useEffect(() => {
-    if (!sessionId) return;
-
-    console.log('Setting up realtime subscription for session:', sessionId);
-
-    const channel = supabase
-      .channel(`session-${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'sessions',
-          filter: `id=eq.${sessionId}`
-        },
-        async (payload) => {
-          console.log('Session updated:', payload);
-          const updatedSession = payload.new as SessionData;
-          setSession(updatedSession);
-
-          // If sub page changed, fetch new sub page data
-          if (updatedSession.current_sub_page_id !== subPage?.id) {
-            const { data: newSubPageData } = await supabase
-              .from('sub_pages')
-              .select('*')
-              .eq('id', updatedSession.current_sub_page_id)
-              .single();
-
-            if (newSubPageData) {
-              setSubPage(newSubPageData);
-              setFormData({}); // Reset form data when page changes
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log('Cleaning up realtime subscription');
-      supabase.removeChannel(channel);
-    };
-  }, [sessionId, subPage?.id]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -186,12 +155,6 @@ const SessionPage = () => {
 
       if (error) throw error;
 
-      // Update session to mark new data
-      await supabase
-        .from('sessions')
-        .update({ has_new_data: true })
-        .eq('id', sessionId);
-
       toast.success('Data submitted successfully!');
       setFormData({}); // Reset form
     } catch (error) {
@@ -200,12 +163,17 @@ const SessionPage = () => {
     }
   };
 
+  const handleSubPageChange = (subPage: SubPageData) => {
+    setCurrentSubPage(subPage);
+    setFormData({}); // Reset form when changing sub pages
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading session...</p>
+          <p>Loading page...</p>
         </div>
       </div>
     );
@@ -216,12 +184,12 @@ const SessionPage = () => {
       <div className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle>Session Error</CardTitle>
+            <CardTitle>Page Error</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-red-600 mb-4">{error}</p>
             <p className="text-sm text-muted-foreground">
-              Session ID: {sessionId || 'Not provided'}
+              Page ID: {sessionId || 'Not provided'}
             </p>
           </CardContent>
         </Card>
@@ -229,17 +197,17 @@ const SessionPage = () => {
     );
   }
 
-  if (!session || !subPage) {
+  if (!mainPage && !currentSubPage) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle>Session Not Found</CardTitle>
+            <CardTitle>Page Not Found</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>The session you're looking for is not available or has been closed.</p>
+            <p>The page you're looking for is not available.</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Session ID: {sessionId}
+              Page ID: {sessionId}
             </p>
           </CardContent>
         </Card>
@@ -250,74 +218,105 @@ const SessionPage = () => {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>{subPage.name}</CardTitle>
-            {subPage.description && (
-              <p className="text-muted-foreground">{subPage.description}</p>
+        {/* Main page info */}
+        {mainPage && (
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold">{mainPage.name}</h1>
+            {mainPage.description && (
+              <p className="text-muted-foreground mt-2">{mainPage.description}</p>
             )}
-          </CardHeader>
-          <CardContent>
-            {/* Render custom HTML if available */}
-            {subPage.html && (
-              <div 
-                className="mb-6 prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: subPage.html }}
-              />
-            )}
+          </div>
+        )}
 
-            {/* Dynamic form based on fields */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {subPage.fields && subPage.fields.length > 0 ? (
-                subPage.fields.map((field, index) => (
-                  <div key={index} className="space-y-2">
-                    <Label htmlFor={field}>{field}</Label>
-                    {field.toLowerCase().includes('message') || field.toLowerCase().includes('comment') ? (
-                      <Textarea
-                        id={field}
-                        placeholder={`Enter ${field.toLowerCase()}`}
-                        value={formData[field] || ''}
-                        onChange={(e) => handleInputChange(field, e.target.value)}
-                      />
-                    ) : (
-                      <Input
-                        id={field}
-                        type={field.toLowerCase().includes('email') ? 'email' : 
-                             field.toLowerCase().includes('phone') ? 'tel' : 'text'}
-                        placeholder={`Enter ${field.toLowerCase()}`}
-                        value={formData[field] || ''}
-                        onChange={(e) => handleInputChange(field, e.target.value)}
-                      />
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="message">Message</Label>
-                  <Textarea
-                    id="message"
-                    placeholder="Enter your message"
-                    value={formData.message || ''}
-                    onChange={(e) => handleInputChange('message', e.target.value)}
-                  />
-                </div>
+        {/* Sub page navigation */}
+        {subPages.length > 1 && (
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-2">
+              {subPages.map((subPage) => (
+                <Button
+                  key={subPage.id}
+                  variant={currentSubPage?.id === subPage.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleSubPageChange(subPage)}
+                >
+                  {subPage.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Current sub page content */}
+        {currentSubPage && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{currentSubPage.name}</CardTitle>
+              {currentSubPage.description && (
+                <p className="text-muted-foreground">{currentSubPage.description}</p>
+              )}
+            </CardHeader>
+            <CardContent>
+              {/* Render custom HTML if available */}
+              {currentSubPage.html && (
+                <div 
+                  className="mb-6 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: currentSubPage.html }}
+                />
               )}
 
-              <Button type="submit" className="w-full">
-                Submit
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+              {/* Dynamic form based on fields */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {currentSubPage.fields && currentSubPage.fields.length > 0 ? (
+                  currentSubPage.fields.map((field, index) => (
+                    <div key={index} className="space-y-2">
+                      <Label htmlFor={field}>{field}</Label>
+                      {field.toLowerCase().includes('message') || field.toLowerCase().includes('comment') ? (
+                        <Textarea
+                          id={field}
+                          placeholder={`Enter ${field.toLowerCase()}`}
+                          value={formData[field] || ''}
+                          onChange={(e) => handleInputChange(field, e.target.value)}
+                        />
+                      ) : (
+                        <Input
+                          id={field}
+                          type={field.toLowerCase().includes('email') ? 'email' : 
+                               field.toLowerCase().includes('phone') ? 'tel' : 'text'}
+                          placeholder={`Enter ${field.toLowerCase()}`}
+                          value={formData[field] || ''}
+                          onChange={(e) => handleInputChange(field, e.target.value)}
+                        />
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="message">Message</Label>
+                    <Textarea
+                      id="message"
+                      placeholder="Enter your message"
+                      value={formData.message || ''}
+                      onChange={(e) => handleInputChange('message', e.target.value)}
+                    />
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full">
+                  Submit
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Render custom CSS */}
-        {subPage.css && (
-          <style dangerouslySetInnerHTML={{ __html: subPage.css }} />
+        {currentSubPage?.css && (
+          <style dangerouslySetInnerHTML={{ __html: currentSubPage.css }} />
         )}
 
         {/* Render custom JavaScript */}
-        {subPage.javascript && (
-          <script dangerouslySetInnerHTML={{ __html: subPage.javascript }} />
+        {currentSubPage?.javascript && (
+          <script dangerouslySetInnerHTML={{ __html: currentSubPage.javascript }} />
         )}
       </div>
     </div>
