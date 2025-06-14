@@ -25,7 +25,8 @@ const navigation = [
   { name: 'Profile', href: '/profile', icon: User },
 ];
 
-const Sidebar = () => {
+// Legacy Sidebar component - kept for compatibility
+const LegacySidebar = () => {
   const location = useLocation();
 
   return (
@@ -60,4 +61,4 @@ const Sidebar = () => {
   );
 };
 
-export default Sidebar;
+export default LegacySidebar;
