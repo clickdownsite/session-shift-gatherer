@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,12 +17,10 @@ const Dashboard = () => {
   const { user, signOut } = useAuth();
   const { 
     sessions, 
-    mainPages,
     switchSubPage, 
     exportSessionData, 
     closeSession,
     getMainPageById,
-    getSubPageById,
     resetNewDataFlag 
   } = useSessionContext();
   const navigate = useNavigate();
@@ -72,14 +69,12 @@ const Dashboard = () => {
     const session = sessions.find(s => s.id === sessionId);
     if (!session) return;
     
-    const { mainName, subName } = getPageTypeName(
-      session.mainPageId, 
-      newSubPageId
-    );
+    const mainPage = getMainPageById(session.mainPageId);
+    const newSubPage = mainPage?.subPages?.find(sp => sp.id === newSubPageId);
     
     switchSubPage(sessionId, newSubPageId);
     toast.success("Page Type Changed", {
-      description: `Session page has been updated to ${subName}.`
+      description: `Session page has been updated to ${newSubPage?.name || 'Unknown'}.`
     });
   };
   
@@ -152,14 +147,12 @@ const Dashboard = () => {
           <ScrollArea className="w-full whitespace-nowrap rounded-md border">
             <div className="flex p-4 gap-4">
               {sessions.map((session) => {
-                const { mainName, subName } = getPageTypeName(
-                  session.mainPageId, 
-                  session.currentSubPageId
-                );
                 const mainPage = getMainPageById(session.mainPageId);
                 const currentSubPage = mainPage?.subPages?.find(
                   sp => sp.id === session.currentSubPageId
                 );
+                const mainName = mainPage?.name || 'Unknown';
+                const subName = currentSubPage?.name || 'Unknown';
                 
                 return (
                   <Card 

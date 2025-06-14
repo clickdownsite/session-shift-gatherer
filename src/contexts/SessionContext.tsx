@@ -174,6 +174,14 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, [mainPages, subPages]);
 
+  const mainPagesById = React.useMemo(() => {
+    if (!transformedMainPages) return {};
+    return transformedMainPages.reduce((acc, page) => {
+      acc[page.id] = page;
+      return acc;
+    }, {} as Record<string, any>);
+  }, [transformedMainPages]);
+
   const transformedSessions = React.useMemo(() => {
     if (!sessions) {
       console.log('Sessions not loaded yet');
@@ -192,15 +200,12 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [sessions]);
 
   const getMainPageById = (mainPageId: string) => {
-    console.log('Looking for main page:', mainPageId, 'in:', transformedMainPages);
-    return transformedMainPages.find(page => page.id === mainPageId);
+    return mainPagesById[mainPageId];
   };
 
   const getSubPageById = (mainPageId: string, subPageId: string) => {
-    console.log('Looking for sub page:', subPageId, 'in main page:', mainPageId);
     const mainPage = getMainPageById(mainPageId);
     const subPage = mainPage?.subPages?.find(subPage => subPage.id === subPageId);
-    console.log('Found sub page:', subPage);
     return subPage;
   };
 
