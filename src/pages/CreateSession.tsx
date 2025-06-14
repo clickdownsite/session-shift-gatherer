@@ -6,11 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
+import { useMainPages, useSubPages } from '@/hooks/usePageTemplates';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const CreateSession = () => {
-  const { createSession, mainPages: rawMainPages, subPages } = useSupabaseSessions();
+  const { createSession } = useSupabaseSessions();
+  const { data: rawMainPages = [], isLoading: isLoadingMainPages } = useMainPages();
+  const { data: subPages = [], isLoading: isLoadingSubPages } = useSubPages();
   const navigate = useNavigate();
   const [mainPageId, setMainPageId] = useState('');
   const [subPageId, setSubPageId] = useState('');
@@ -19,6 +23,8 @@ const CreateSession = () => {
     collectIPGeolocation: true,
     lockToFirstIP: false,
   });
+
+  const isLoading = isLoadingMainPages || isLoadingSubPages;
 
   const mainPages = React.useMemo(() => {
     if (!rawMainPages || !subPages) return [];
@@ -42,10 +48,10 @@ const CreateSession = () => {
   
   // Set initial main page when mainPages loads
   React.useEffect(() => {
-    if (mainPages.length > 0 && !mainPageId) {
+    if (!isLoading && mainPages.length > 0 && !mainPageId) {
       setMainPageId(mainPages[0].id);
     }
-  }, [mainPages, mainPageId]);
+  }, [mainPages, mainPageId, isLoading]);
   
   const selectedMainPage = mainPages.find(p => p.id === mainPageId);
   const selectedSubPage = selectedMainPage?.subPages?.find(p => p.id === subPageId);
@@ -56,24 +62,45 @@ const CreateSession = () => {
 
   const handleCreateSession = () => {
     if (!mainPageId || !subPageId) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Please select both a page type and subpage",
-        variant: "destructive"
       });
       return;
     }
     
     createSession({ mainPageId, subPageId, sessionOptions }, {
       onSuccess: () => {
-        toast({
-          title: "Session Created",
+        toast.success("Session Created", {
           description: "New session has been created successfully."
         });
-        navigate('/');
+        navigate('/dashboard');
       }
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto max-w-3xl animate-fade-in py-8">
+        <h1 className="text-3xl font-bold mb-8">Create New Session</h1>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64 mt-2" />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end gap-3">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-32" />
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto max-w-3xl animate-fade-in py-8">
@@ -107,7 +134,7 @@ const CreateSession = () => {
               <Select value={subPageId} onValueChange={setSubPageId}>
                 <SelectTrigger id="sub-page-type">
                   <SelectValue placeholder="Select Sub Page" />
-                </SelectTrigger>
+                </Trigger>
                 <SelectContent>
                   {selectedMainPage.subPages.map((subPage) => (
                     <SelectItem key={subPage.id} value={subPage.id}>
@@ -177,7 +204,7 @@ const CreateSession = () => {
           )}
         </CardContent>
         <CardFooter className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => navigate('/')}>
+          <Button variant="outline" onClick={() => navigate('/dashboard')}>
             Cancel
           </Button>
           <Button onClick={handleCreateSession} disabled={!mainPageId || !subPageId}>

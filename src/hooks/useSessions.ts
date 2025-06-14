@@ -1,8 +1,7 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import type { Session } from '@/types/session';
 import { MutateOptions } from '@tanstack/react-query';
 
@@ -65,10 +64,8 @@ export const useSessions = () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to create session: " + error.message,
-        variant: "destructive"
+      toast.error("Failed to create session", {
+        description: error.message,
       });
     }
   });
@@ -110,15 +107,12 @@ export const useSessions = () => {
       if (context?.previousSessions) {
         queryClient.setQueryData(['sessions', user?.id], context.previousSessions as any);
       }
-      toast({
-        title: "Error",
-        description: "Failed to close session: " + error.message,
-        variant: "destructive"
+      toast.error("Failed to close session", {
+        description: error.message,
       });
     },
     onSuccess: () => {
-      toast({
-        title: "Session Closed",
+      toast.success("Session Closed", {
         description: "The session has been marked as inactive."
       });
     },
