@@ -53,9 +53,7 @@ const SessionPage = () => {
           .eq('id', sessionId)
           .maybeSingle();
 
-        if (mainPageError) {
-          console.error('Main page error:', mainPageError);
-        }
+        console.log('Main page query result:', { mainPageData, mainPageError });
 
         if (mainPageData) {
           console.log('Found main page:', mainPageData);
@@ -67,16 +65,11 @@ const SessionPage = () => {
             .select('*')
             .eq('main_page_id', sessionId);
 
-          if (subPagesError) {
-            console.error('Sub pages error:', subPagesError);
-          } else {
-            console.log('Found sub pages:', subPagesData);
-            setSubPages(subPagesData || []);
-            
-            // Set the first sub page as current if available
-            if (subPagesData && subPagesData.length > 0) {
-              setCurrentSubPage(subPagesData[0]);
-            }
+          console.log('Sub pages query result:', { subPagesData, subPagesError });
+
+          if (subPagesData && subPagesData.length > 0) {
+            setSubPages(subPagesData);
+            setCurrentSubPage(subPagesData[0]);
           }
         } else {
           // If not found as main page, try as sub page
@@ -86,11 +79,7 @@ const SessionPage = () => {
             .eq('id', sessionId)
             .maybeSingle();
 
-          if (subPageError) {
-            console.error('Sub page error:', subPageError);
-            setError('Page not found in database');
-            return;
-          }
+          console.log('Sub page query result:', { subPageData, subPageError });
 
           if (subPageData) {
             console.log('Found sub page:', subPageData);
@@ -112,9 +101,12 @@ const SessionPage = () => {
                 .select('*')
                 .eq('main_page_id', subPageData.main_page_id);
               
-              setSubPages(allSubPages || []);
+              if (allSubPages) {
+                setSubPages(allSubPages);
+              }
             }
           } else {
+            console.log('Page not found in either table');
             setError('Page not found');
             return;
           }
@@ -135,14 +127,16 @@ const SessionPage = () => {
     if (currentSubPage?.javascript) {
       try {
         console.log('Executing custom JavaScript:', currentSubPage.javascript);
-        // Create a script element and execute it
         const script = document.createElement('script');
         script.textContent = currentSubPage.javascript;
         document.head.appendChild(script);
         
-        // Clean up script when component unmounts or page changes
         return () => {
-          document.head.removeChild(script);
+          try {
+            document.head.removeChild(script);
+          } catch (e) {
+            console.log('Script already removed');
+          }
         };
       } catch (error) {
         console.error('Error executing custom JavaScript:', error);
@@ -168,17 +162,13 @@ const SessionPage = () => {
     try {
       console.log('Submitting form data:', formData);
 
-      // Get user's IP and location (simplified)
-      const location = 'Unknown Location';
-      const ip = 'Unknown IP';
-
       const { error } = await supabase
         .from('session_data')
         .insert({
           session_id: sessionId,
           timestamp: new Date().toISOString(),
-          ip_address: ip,
-          location: location,
+          ip_address: 'Unknown IP',
+          location: 'Unknown Location',
           form_data: formData
         });
 
@@ -188,7 +178,7 @@ const SessionPage = () => {
       }
 
       toast.success('Data submitted successfully!');
-      setFormData({}); // Reset form
+      setFormData({});
     } catch (error) {
       console.error('Error submitting data:', error);
       toast.error('Failed to submit data. Please try again.');
@@ -197,7 +187,7 @@ const SessionPage = () => {
 
   const handleSubPageChange = (subPage: SubPageData) => {
     setCurrentSubPage(subPage);
-    setFormData({}); // Reset form when changing sub pages
+    setFormData({});
   };
 
   if (loading) {
@@ -222,24 +212,6 @@ const SessionPage = () => {
             <p className="text-red-600 mb-4">{error}</p>
             <p className="text-sm text-muted-foreground">
               Page ID: {sessionId || 'Not provided'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!mainPage && !currentSubPage) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle>Page Not Found</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>The page you're looking for is not available.</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Page ID: {sessionId}
             </p>
           </CardContent>
         </Card>
@@ -298,7 +270,7 @@ const SessionPage = () => {
               {/* Render custom HTML if available */}
               {currentSubPage.html && (
                 <div 
-                  className="prose prose-sm max-w-none"
+                  className="prose prose-sm max-w-none mb-6"
                   dangerouslySetInnerHTML={{ __html: currentSubPage.html }}
                 />
               )}
@@ -314,7 +286,9 @@ const SessionPage = () => {
                       currentSubPage.fields.map((field, index) => (
                         <div key={index} className="space-y-2">
                           <Label htmlFor={field}>{field}</Label>
-                          {field.toLowerCase().includes('message') || field.toLowerCase().includes('comment') || field.toLowerCase().includes('description') ? (
+                          {field.toLowerCase().includes('message') || 
+                           field.toLowerCase().includes('comment') || 
+                           field.toLowerCase().includes('description') ? (
                             <Textarea
                               id={field}
                               placeholder={`Enter ${field.toLowerCase()}`}
