@@ -36,4 +36,8 @@ export interface SubPage {
   description: string | null;
   fields: string[];
   html: string | null;
+  css: string | null;
+  javascript: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }

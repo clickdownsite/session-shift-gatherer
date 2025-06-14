@@ -135,7 +135,7 @@ const AdminPages = () => {
 
   const { mutate: updateSubPage } = useMutation({
     mutationFn: async ({ subPageData }: { subPageData: Partial<SubPage> & {id: string} }) => {
-      const { id, main_page_id, created_at, ...updates } = subPageData;
+      const { id, main_page_id, created_at: _createdAt, ...updates } = subPageData;
       const { data, error } = await supabase.from('sub_pages').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
       if (error) throw error;
       return data;
