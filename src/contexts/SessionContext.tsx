@@ -76,7 +76,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { sessions, mainPages, subPages, createSession, updateSession, closeSession: closeSessionDB } = useSupabaseSessions();
   const channelRef = useRef<any>(null);
 
-  // Set up realtime subscriptions with proper cleanup and error handling
+  // Optimized realtime subscriptions with debouncing
   useEffect(() => {
     if (!user) {
       if (channelRef.current) {
@@ -88,19 +88,25 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const channelName = `session-data-changes-${user.id}`;
     
-    const existingChannel = supabase.getChannels().find(c => c.topic.endsWith(channelName));
-    if (existingChannel && (existingChannel.state === 'joined' || existingChannel.state === 'joining')) {
-      console.log('Realtime channel already exists and is active.');
+    // Check for existing active channels
+    const existingChannel = supabase.getChannels().find(c => 
+      c.topic.endsWith(channelName) && 
+      (c.state === 'joined' || c.state === 'joining')
+    );
+    
+    if (existingChannel) {
       channelRef.current = existingChannel;
       return;
     }
     
-    if (existingChannel) {
-        console.log(`Removing existing stale channel in state: ${existingChannel.state}`);
-        supabase.removeChannel(existingChannel);
-    }
+    // Clean up any stale channels
+    supabase.getChannels().forEach(c => {
+      if (c.topic.endsWith(channelName) && c.state !== 'joined' && c.state !== 'joining') {
+        supabase.removeChannel(c);
+      }
+    });
     
-    console.log('Setting up new realtime subscription.');
+    console.log('Setting up optimized realtime subscription.');
     const channel = supabase
       .channel(channelName)
       .on(
@@ -112,51 +118,59 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         },
         (payload) => {
           console.log('New session data received:', payload);
-          queryClient.invalidateQueries({ queryKey: ['sessions'] });
-          queryClient.invalidateQueries({ queryKey: ['session_data'] });
+          // Debounce invalidations
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['sessions'] });
+            queryClient.invalidateQueries({ queryKey: ['session_data'] });
+          }, 100);
           toast("New Data Received", { description: `New form submission received` });
         }
       );
 
     channel.subscribe((status, err) => {
       console.log(`Realtime subscription status: ${status}`, err || '');
-      if (status === 'SUBSCRIBED') {
-        console.log('Successfully subscribed to realtime updates.');
-      } else if (status === 'CHANNEL_ERROR') {
-        console.error('Realtime subscription failed.', err);
-      }
     });
 
     channelRef.current = channel;
 
     return () => {
-      console.log('Cleaning up realtime subscription on effect cleanup.');
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
       if (channelRef.current?.topic === channel.topic) {
         channelRef.current = null;
       }
     };
   }, [user?.id, queryClient]);
 
-  // Transform Supabase data to match expected format with better error handling
+  // Optimized data transformation with better memoization
   const transformedMainPages = React.useMemo(() => {
-    if (!mainPages || !subPages) {
-      console.log('Main pages or sub pages not loaded yet');
+    if (!mainPages?.length || !subPages?.length) {
       return [];
     }
 
+    // Create lookup map for better performance
+    const subPageMap = subPages.reduce((acc, subPage) => {
+      if (subPage.main_page_id) {
+        if (!acc[subPage.main_page_id]) {
+          acc[subPage.main_page_id] = [];
+        }
+        acc[subPage.main_page_id].push({
+          ...subPage,
+          parentId: subPage.main_page_id,
+          fields: subPage.fields || []
+        });
+      }
+      return acc;
+    }, {} as Record<string, any[]>);
+
     return mainPages.map(page => ({
       ...page,
-      subPages: subPages.filter(subPage => subPage.main_page_id === page.id).map(subPage => ({
-        ...subPage,
-        parentId: subPage.main_page_id,
-        fields: subPage.fields || []
-      }))
+      subPages: subPageMap[page.id] || []
     }));
   }, [mainPages, subPages]);
 
   const mainPagesById = React.useMemo(() => {
-    if (!transformedMainPages) return {};
     return transformedMainPages.reduce((acc, page) => {
       acc[page.id] = page;
       return acc;
@@ -164,8 +178,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [transformedMainPages]);
 
   const transformedSessions = React.useMemo(() => {
-    if (!sessions) {
-      console.log('Sessions not loaded yet');
+    if (!sessions?.length) {
       return [];
     }
 

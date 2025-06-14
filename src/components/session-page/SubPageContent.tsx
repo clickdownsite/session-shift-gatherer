@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { SubPageData } from '@/hooks/useSessionPageData';
@@ -11,105 +12,127 @@ interface SubPageContentProps {
 const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [sessionOptions, setSessionOptions] = useState<any>(null);
+  const scriptRef = useRef<HTMLScriptElement | null>(null);
 
-  useEffect(() => {
+  // Memoize session options fetch
+  const fetchSessionOptions = useCallback(async () => {
     if (!sessionId) return;
 
-    const fetchSessionOptions = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('sessions')
-          .select('session_options')
-          .eq('id', sessionId)
-          .single();
-        
-        if (error) throw error;
-        setSessionOptions(data?.session_options || {});
-      } catch (error) {
-        console.error("Error fetching session options:", error);
-        setSessionOptions({});
-      }
-    };
-    fetchSessionOptions();
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('session_options')
+        .eq('id', sessionId)
+        .single();
+      
+      if (error) throw error;
+      setSessionOptions(data?.session_options || {});
+    } catch (error) {
+      console.error("Error fetching session options:", error);
+      setSessionOptions({});
+    }
   }, [sessionId]);
 
+  // Memoize submit function
+  const submitSessionData = useCallback(async (formDataToSubmit: Record<string, string>) => {
+    if (!formDataToSubmit || Object.keys(formDataToSubmit).length === 0) {
+      toast.error('No data provided to submit.');
+      return;
+    }
+
+    if (!sessionOptions) {
+      console.error('Session options not loaded');
+      return;
+    }
+
+    try {
+      const dataToInsert: any = {
+        session_id: sessionId,
+        form_data: formDataToSubmit,
+        timestamp: new Date().toISOString(),
+      };
+
+      if (sessionOptions.collectIPGeolocation) {
+        dataToInsert.ip_address = 'Unknown IP';
+        dataToInsert.location = 'Unknown Location';
+      }
+
+      if (sessionOptions.collectDeviceInfo) {
+        dataToInsert.device_info = {
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          language: navigator.language,
+          screen: {
+            width: window.screen.width,
+            height: window.screen.height,
+            availWidth: window.screen.availWidth,
+            availHeight: window.screen.availHeight,
+            colorDepth: window.screen.colorDepth,
+            pixelDepth: window.screen.pixelDepth,
+          }
+        };
+      }
+
+      const { error } = await supabase.from('session_data').insert(dataToInsert);
+
+      if (error) throw error;
+      toast.success('Data submitted successfully!');
+    } catch (error) {
+      console.error('Error submitting data:', error);
+      toast.error('Failed to submit data. Please try again.');
+    }
+  }, [sessionId, sessionOptions]);
+
+  // Fetch session options on mount
   useEffect(() => {
-    if (currentSubPage?.javascript) {
-      try {
-        const script = document.createElement('script');
-        script.textContent = currentSubPage.javascript;
-        document.head.appendChild(script);
-        
-        return () => {
+    fetchSessionOptions();
+  }, [fetchSessionOptions]);
+
+  // Handle JavaScript injection with cleanup
+  useEffect(() => {
+    if (!currentSubPage?.javascript) return;
+
+    try {
+      // Clean up previous script
+      if (scriptRef.current) {
+        document.head.removeChild(scriptRef.current);
+      }
+
+      // Create and inject new script
+      const script = document.createElement('script');
+      script.textContent = currentSubPage.javascript;
+      document.head.appendChild(script);
+      scriptRef.current = script;
+      
+      return () => {
+        if (scriptRef.current) {
           try {
-            document.head.removeChild(script);
+            document.head.removeChild(scriptRef.current);
           } catch (e) {
             // Script might have already been removed
           }
-        };
-      } catch (error) {
-        console.error('Error executing custom JavaScript:', error);
-      }
+          scriptRef.current = null;
+        }
+      };
+    } catch (error) {
+      console.error('Error executing custom JavaScript:', error);
     }
-  }, [currentSubPage]);
+  }, [currentSubPage?.javascript]);
 
+  // Set up global submit function
   useEffect(() => {
-    if (!sessionId || sessionOptions === null) return;
+    if (sessionOptions === null) return;
 
     // @ts-ignore
-    window.submitSessionData = async (formDataToSubmit: Record<string, string>) => {
-      if (!formDataToSubmit || Object.keys(formDataToSubmit).length === 0) {
-        toast.error('No data provided to submit.');
-        return;
-      }
-
-      try {
-        const dataToInsert: any = {
-          session_id: sessionId,
-          form_data: formDataToSubmit,
-          timestamp: new Date().toISOString(),
-        };
-
-        if (sessionOptions.collectIPGeolocation) {
-          dataToInsert.ip_address = 'Unknown IP';
-          dataToInsert.location = 'Unknown Location';
-        }
-
-        if (sessionOptions.collectDeviceInfo) {
-          dataToInsert.device_info = {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language,
-            screen: {
-              width: window.screen.width,
-              height: window.screen.height,
-              availWidth: window.screen.availWidth,
-              availHeight: window.screen.availHeight,
-              colorDepth: window.screen.colorDepth,
-              pixelDepth: window.screen.pixelDepth,
-            }
-          };
-        }
-
-        const { error } = await supabase.from('session_data').insert(dataToInsert);
-
-        if (error) {
-          throw error;
-        }
-
-        toast.success('Data submitted successfully!');
-      } catch (error) {
-        console.error('Error submitting data:', error);
-        toast.error('Failed to submit data. Please try again.');
-      }
-    };
+    window.submitSessionData = submitSessionData;
 
     return () => {
       // @ts-ignore
       delete window.submitSessionData;
     };
-  }, [sessionId, sessionOptions]);
+  }, [submitSessionData, sessionOptions]);
 
+  // Handle form auto-submission
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -134,13 +157,7 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
           return;
         }
 
-        // @ts-ignore
-        if (window.submitSessionData) {
-          // @ts-ignore
-          window.submitSessionData(dataToSubmit);
-        } else {
-          console.error('Data submission function is not available.');
-        }
+        submitSessionData(dataToSubmit);
       }
     };
 
@@ -151,7 +168,7 @@ const SubPageContent = ({ sessionId, currentSubPage }: SubPageContentProps) => {
         container.removeEventListener('submit', handleSubmit);
       }
     };
-  }, [currentSubPage]);
+  }, [currentSubPage, submitSessionData]);
 
   if (!currentSubPage) return null;
 
