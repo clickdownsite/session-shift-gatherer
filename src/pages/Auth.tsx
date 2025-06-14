@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader } from 'lucide-react';
 
 const Auth = () => {
-  const { signIn, signUp, loading } = useAuth();
+  const { user, signIn, signUp, loading } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,6 +25,12 @@ const Auth = () => {
   const [signUpPassword, setSignUpPassword] = useState('');
   const [fullName, setFullName] = useState('');
 
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, loading, navigate]);
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -35,7 +41,7 @@ const Auth = () => {
     if (error) {
       setError(error.message);
     } else {
-      navigate('/');
+      navigate('/dashboard');
     }
     
     setIsLoading(false);
@@ -58,7 +64,7 @@ const Auth = () => {
     setIsLoading(false);
   };
 
-  if (loading) {
+  if (loading || user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader className="h-8 w-8 animate-spin" />

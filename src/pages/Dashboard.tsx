@@ -120,36 +120,6 @@ const Dashboard = () => {
     }).format(date);
   };
 
-  // Show loading state if data is not loaded yet
-  if (!mainPages || mainPages.length === 0) {
-    return (
-      <div className="container mx-auto animate-fade-in">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">Session Generator</h1>
-            <p className="text-muted-foreground">Welcome back, {user?.email}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate('/create-session')}>
-              <Plus className="h-4 w-4 mr-2" /> Create Session
-            </Button>
-            <Button variant="outline" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-2" /> Sign Out
-            </Button>
-          </div>
-        </div>
-        
-        <div className="bg-card rounded-lg p-8 text-center border">
-          <div className="mb-4 text-muted-foreground">
-            <LinkIcon className="h-12 w-12 mx-auto animate-pulse" />
-          </div>
-          <h3 className="text-lg font-medium mb-2">Loading...</h3>
-          <p className="text-muted-foreground">Please wait while we load your data</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto animate-fade-in">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
