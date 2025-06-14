@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { toast } from '@/components/ui/sonner';
+import { toast } from '@/hooks/use-toast';
 import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
 
 const CreateSession = () => {
@@ -55,15 +56,18 @@ const CreateSession = () => {
 
   const handleCreateSession = () => {
     if (!mainPageId || !subPageId) {
-      toast.error("Error", {
-        description: "Please select both a page type and subpage"
+      toast({
+        title: "Error",
+        description: "Please select both a page type and subpage",
+        variant: "destructive"
       });
       return;
     }
     
     createSession({ mainPageId, subPageId, sessionOptions }, {
       onSuccess: () => {
-        toast.success("Session Created", {
+        toast({
+          title: "Session Created",
           description: "New session has been created successfully."
         });
         navigate('/');

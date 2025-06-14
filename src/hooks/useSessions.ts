@@ -1,0 +1,137 @@
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
+import { toast } from '@/hooks/use-toast';
+import type { Session } from '@/types/session';
+import { MutateOptions } from '@tanstack/react-query';
+
+type CreateSessionVariables = {
+  mainPageId: string;
+  subPageId: string;
+  sessionOptions?: Record<string, any>;
+  pageName?: string;
+};
+
+export const useSessions = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: sessions = [], isLoading } = useQuery({
+    queryKey: ['sessions', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as Session[];
+    },
+    enabled: !!user,
+  });
+
+  const createSessionMutation = useMutation<
+    Session,
+    Error,
+    CreateSessionVariables
+  >({
+    mutationFn: async ({ mainPageId, subPageId, sessionOptions, pageName }) => {
+      if (!user) throw new Error('User not authenticated');
+      const sessionId = Math.random().toString(36).substring(2, 8);
+      const { data, error } = await supabase
+        .from('sessions')
+        .insert({
+          id: sessionId,
+          user_id: user.id,
+          main_page_id: mainPageId,
+          current_sub_page_id: subPageId,
+          page_type: pageName,
+          active: true,
+          has_new_data: false,
+          session_options: sessionOptions || {},
+        })
+        .select()
+        .single();
+      if (error) {
+        console.error("Error creating session:", error);
+        throw error;
+      }
+      return data as Session;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to create session: " + error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const updateSessionMutation = useMutation({
+    mutationFn: async ({ sessionId, updates }: { sessionId: string; updates: Partial<Session> }) => {
+      const { data, error } = await supabase
+        .from('sessions')
+        .update(updates)
+        .eq('id', sessionId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+    }
+  });
+
+  const closeSessionMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      const { error } = await supabase
+        .from('sessions')
+        .update({ active: false })
+        .eq('id', sessionId);
+      if (error) throw error;
+    },
+    onMutate: async (sessionId: string) => {
+      await queryClient.cancelQueries({ queryKey: ['sessions', user?.id] });
+      const previousSessions = queryClient.getQueryData<Session[]>(['sessions', user?.id]);
+      queryClient.setQueryData<Session[]>(
+        ['sessions', user?.id],
+        (old) => old?.filter((session) => session.id !== sessionId) ?? []
+      );
+      return { previousSessions };
+    },
+    onError: (error, sessionId, context) => {
+      if (context?.previousSessions) {
+        queryClient.setQueryData(['sessions', user?.id], context.previousSessions as any);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to close session: " + error.message,
+        variant: "destructive"
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Session Closed",
+        description: "The session has been marked as inactive."
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions', user?.id] });
+    },
+  });
+
+  return {
+    sessions,
+    isLoading,
+    createSession: createSessionMutation.mutate,
+    updateSession: updateSessionMutation.mutate,
+    closeSession: closeSessionMutation.mutate,
+  };
+};
