@@ -80,18 +80,11 @@ export const LiveSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setupConversionTracking(currentSession.id, firstTestId, firstVariant);
 
       // Set up heatmap tracking
-      const cleanup = setupHeatmapTracking();
-
-      return cleanup;
+      setupHeatmapTracking();
     };
 
-    const cleanup = setupTracking();
-    return () => {
-      if (typeof cleanup === 'function') {
-        cleanup();
-      }
-    };
-  }, [currentSession, activeTests]);
+    setupTracking();
+  }, [currentSession, activeTests, getVariantForTest, setupConversionTracking, setupHeatmapTracking]);
 
   return (
     <LiveSessionContext.Provider

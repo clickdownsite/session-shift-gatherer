@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SessionProvider } from "@/contexts/SessionContext";
@@ -56,7 +56,9 @@ const App = () => (
                   <Route path="/admin/login" element={<AdminLogin />} />
                   <Route path="/admin" element={
                     <AdminProtectedRoute>
-                      <AdminLayout />
+                      <AdminLayout>
+                        <Outlet />
+                      </AdminLayout>
                     </AdminProtectedRoute>
                   }>
                     <Route index element={<AdminDashboard />} />
@@ -70,7 +72,9 @@ const App = () => (
                   {/* Protected User Routes */}
                   <Route path="/" element={
                     <ProtectedRoute>
-                      <Layout />
+                      <Layout>
+                        <Outlet />
+                      </Layout>
                     </ProtectedRoute>
                   }>
                     <Route path="dashboard" element={<Dashboard />} />

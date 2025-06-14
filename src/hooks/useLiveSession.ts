@@ -261,7 +261,12 @@ export const useSessionData = (sessionId?: string) => {
         .order('timestamp_offset', { ascending: true });
       
       if (error) throw error;
-      return data as LiveInteraction[];
+      // Type assertion with proper conversion
+      return (data as any[]).map(item => ({
+        ...item,
+        coordinates: item.coordinates as { x: number; y: number; viewport_width: number; viewport_height: number } | null,
+        data: item.data as Record<string, any>
+      })) as LiveInteraction[];
     },
     enabled: !!sessionId
   });
