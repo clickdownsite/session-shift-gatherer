@@ -1,64 +1,15 @@
+
 import React, { useState, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
 import { Skeleton } from '@/components/ui/skeleton';
 import CreateSessionSkeleton from '@/components/session/CreateSessionSkeleton';
 import SessionSettings from '@/components/session/SessionSettings';
-
-function SessionSettings({ sessionOptions, handleOptionChange }: any) {
-  return (
-    <div>
-      <h3 className="text-lg font-medium mb-3">Session Settings</h3>
-      <div className="space-y-3 rounded-lg border p-4">
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label htmlFor="collect-device-info">Collect Device Info</Label>
-            <p className="text-sm text-muted-foreground">
-              Capture browser, OS, and device type.
-            </p>
-          </div>
-          <Switch
-            id="collect-device-info"
-            checked={sessionOptions.collectDeviceInfo}
-            onCheckedChange={(checked) => handleOptionChange('collectDeviceInfo', checked)}
-          />
-        </div>
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label htmlFor="collect-ip">Collect IP & Geolocation</Label>
-            <p className="text-sm text-muted-foreground">
-              Capture visitor's IP address and approximate location.
-            </p>
-          </div>
-          <Switch
-            id="collect-ip"
-            checked={sessionOptions.collectIPGeolocation}
-            onCheckedChange={(checked) => handleOptionChange('collectIPGeolocation', checked)}
-          />
-        </div>
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label htmlFor="lock-ip">Lock Session to First IP</Label>
-            <p className="text-sm text-muted-foreground">
-              Only allow the first visitor to view and submit data.
-            </p>
-          </div>
-          <Switch
-            id="lock-ip"
-            checked={sessionOptions.lockToFirstIP}
-            onCheckedChange={(checked) => handleOptionChange('lockToFirstIP', checked)}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const CreateSessionForm = () => {
   const { createSession, mainPages: rawMainPages, subPages, isLoading } = useSupabaseSessions();
