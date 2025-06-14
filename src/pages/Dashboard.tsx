@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,26 +37,18 @@ const Dashboard = () => {
     }> 
   } | null>(null);
 
-  // Move all hooks to the top before any early returns
   const { sessionData } = useSessionData(viewingSessionData?.sessionId);
   
-  // Reset the new data flag to stop the animation when the user has seen it
+  // Show notifications for new data
   useEffect(() => {
-    const timeouts: NodeJS.Timeout[] = [];
-    
     sessions.forEach(session => {
       if (session.hasNewData) {
-        // Show notification for new data
         toast("New Data Received", {
           description: `New data has been captured for session ${session.id}`,
           icon: <Bell className="h-4 w-4" />
         });
       }
     });
-    
-    return () => {
-      timeouts.forEach(timeout => clearTimeout(timeout));
-    };
   }, [sessions]);
   
   const getPageTypeName = (mainPageId: string, subPageId: string) => {
@@ -68,7 +61,6 @@ const Dashboard = () => {
     };
   };
 
-  // Define all functions before early returns
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
     toast.success("Link Copied", {
@@ -128,7 +120,7 @@ const Dashboard = () => {
     }).format(date);
   };
 
-  // Show loading state if mainPages is not loaded yet
+  // Show loading state if data is not loaded yet
   if (!mainPages || mainPages.length === 0) {
     return (
       <div className="container mx-auto animate-fade-in">

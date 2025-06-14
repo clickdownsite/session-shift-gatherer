@@ -76,18 +76,23 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { sessions, mainPages, subPages, createSession, updateSession, closeSession: closeSessionDB } = useSupabaseSessions();
   const channelRef = useRef<any>(null);
 
-  // Set up realtime subscriptions with proper cleanup
+  // Set up realtime subscriptions with proper cleanup and error handling
   useEffect(() => {
     if (!user) return;
 
+    console.log('Setting up realtime subscription for user:', user.id);
+
     // Clean up existing channel if it exists
     if (channelRef.current) {
+      console.log('Cleaning up existing channel');
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
-    // Create new channel with unique name
-    const channelName = `session-changes-${user.id}-${Date.now()}`;
+    // Create new channel with unique name and simplified configuration
+    const channelName = `session-data-changes-${user.id}`;
+    console.log('Creating channel:', channelName);
+    
     const channel = supabase
       .channel(channelName)
       .on(
@@ -99,8 +104,13 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         },
         (payload) => {
           console.log('New session data received:', payload);
+          
+          // Invalidate queries to refresh data
+          queryClient.invalidateQueries({ queryKey: ['sessions'] });
+          queryClient.invalidateQueries({ queryKey: ['session_data'] });
+          
           toast("New Data Received", {
-            description: `New form submission received for session`,
+            description: `New form submission received`,
           });
         }
       );
@@ -108,37 +118,57 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Subscribe and store reference
     channel.subscribe((status) => {
       console.log('Channel subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('Successfully subscribed to realtime updates');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('Failed to subscribe to realtime updates');
+      }
     });
     
     channelRef.current = channel;
 
     return () => {
+      console.log('Cleaning up realtime subscription');
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-subscriptions
+  }, [user?.id, queryClient]);
 
-  // Transform Supabase data to match expected format
-  const transformedMainPages = mainPages.map(page => ({
-    ...page,
-    subPages: subPages.filter(subPage => subPage.main_page_id === page.id).map(subPage => ({
-      ...subPage,
-      parentId: subPage.main_page_id,
-      fields: subPage.fields || []
-    }))
-  }));
+  // Transform Supabase data to match expected format with better error handling
+  const transformedMainPages = React.useMemo(() => {
+    if (!mainPages || !subPages) {
+      console.log('Main pages or sub pages not loaded yet');
+      return [];
+    }
 
-  const transformedSessions = sessions.map(session => ({
-    ...session,
-    mainPageId: session.main_page_id,
-    currentSubPageId: session.current_sub_page_id,
-    pageType: session.page_type,
-    createdAt: session.created_at,
-    hasNewData: session.has_new_data,
-    data: []
-  }));
+    return mainPages.map(page => ({
+      ...page,
+      subPages: subPages.filter(subPage => subPage.main_page_id === page.id).map(subPage => ({
+        ...subPage,
+        parentId: subPage.main_page_id,
+        fields: subPage.fields || []
+      }))
+    }));
+  }, [mainPages, subPages]);
+
+  const transformedSessions = React.useMemo(() => {
+    if (!sessions) {
+      console.log('Sessions not loaded yet');
+      return [];
+    }
+
+    return sessions.map(session => ({
+      ...session,
+      mainPageId: session.main_page_id,
+      currentSubPageId: session.current_sub_page_id,
+      pageType: session.page_type,
+      createdAt: session.created_at,
+      hasNewData: session.has_new_data,
+      data: []
+    }));
+  }, [sessions]);
 
   const getMainPageById = (mainPageId: string) => {
     console.log('Looking for main page:', mainPageId, 'in:', transformedMainPages);
@@ -248,7 +278,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) throw error;
       
-      // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['main_pages'] });
       
       toast.success("Main page updated successfully");
@@ -277,7 +306,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) throw error;
       
-      // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
       
       toast.success("Sub page updated successfully");
@@ -308,7 +336,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw error;
       }
       
-      // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['main_pages'] });
       
       toast.success("Main page created successfully");
@@ -344,7 +371,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw error;
       }
       
-      // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
       
       toast.success("Sub page created successfully");
@@ -359,7 +385,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       console.log('Deleting main page:', mainPageId);
       
-      // First delete all sub pages
       const { error: subPageError } = await supabase
         .from('sub_pages')
         .delete()
@@ -367,7 +392,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (subPageError) throw subPageError;
 
-      // Then delete the main page
       const { error } = await supabase
         .from('main_pages')
         .delete()
@@ -375,7 +399,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) throw error;
       
-      // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['main_pages'] });
       queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
       
@@ -397,7 +420,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) throw error;
       
-      // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
       
       toast.success("Sub page deleted successfully");
