@@ -8,9 +8,11 @@ const Footer = () => {
                 <div className="text-center md:text-left mb-4 md:mb-0">
                     <p className="text-sm text-muted-foreground">&copy; 2025 ClickDown. All rights reserved.</p>
                 </div>
-                <nav className="flex gap-4">
+                <nav className="flex gap-4 flex-wrap justify-center">
                     <a href="#features" className="text-sm hover:underline">Features</a>
+                    <a href="#testimonials" className="text-sm hover:underline">Testimonials</a>
                     <a href="#pricing" className="text-sm hover:underline">Pricing</a>
+                    <a href="#faq" className="text-sm hover:underline">FAQ</a>
                 </nav>
             </div>
         </footer>

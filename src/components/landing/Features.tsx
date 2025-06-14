@@ -31,7 +31,7 @@ const Features = () => {
             </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {features.map(({ icon, title, description }) => (
-                    <Card key={title} className="bg-muted/50">
+                    <Card key={title} className="bg-muted/50 transition-transform duration-300 ease-in-out hover:-translate-y-2 hover:shadow-xl">
                         <CardHeader>
                             <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 text-primary mb-4">
                                 {icon}
