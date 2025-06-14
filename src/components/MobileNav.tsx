@@ -4,12 +4,12 @@ import { Link } from 'react-router-dom';
 import { Menu, Calendar, Settings, User, LinkIcon, Moon, Sun, X, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/hooks/useAuth';
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
   
   const navigation = [
@@ -18,6 +18,10 @@ export function MobileNav() {
     { name: 'Profile', href: '/profile', icon: User },
     { name: 'Settings', href: '/settings', icon: Settings }
   ];
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
   
   return (
     <div className="md:hidden flex justify-between items-center mb-6">

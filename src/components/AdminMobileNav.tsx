@@ -4,12 +4,12 @@ import { Link } from 'react-router-dom';
 import { Menu, Settings, Users, LayoutDashboard, FileText, Database, CreditCard, Moon, Sun, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/hooks/useAuth';
 
 export function AdminMobileNav() {
   const [open, setOpen] = useState(false);
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   
   const navigation = [
@@ -20,6 +20,10 @@ export function AdminMobileNav() {
     { name: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
     { name: 'Settings', href: '/admin/settings', icon: Settings }
   ];
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
   
   return (
     <div className="md:hidden flex justify-between items-center mb-6">

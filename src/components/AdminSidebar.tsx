@@ -2,12 +2,12 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Settings, Users, LayoutDashboard, FileText, Database, CreditCard, Moon, Sun, LogOut } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from 'next-themes';
 
 const AdminSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -21,6 +21,10 @@ const AdminSidebar = () => {
   const handleSignOut = () => {
     localStorage.removeItem('adminSession');
     navigate('/admin-login');
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
   
   return (
