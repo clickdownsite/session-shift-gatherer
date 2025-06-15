@@ -128,6 +128,41 @@ const CreateSessionForm = () => {
     );
   };
 
+  // Derived selects: Always select valid IDs.
+  const filteredMainPages = mainPages.filter((page) => page.id && page.id !== "");
+  const filteredSubPages = selectedMainPage && selectedMainPage.subPages
+    ? selectedMainPage.subPages.filter((subPage) => subPage.id && subPage.id !== "")
+    : [];
+  const filteredPageFlows = Array.isArray(pageFlows)
+    ? pageFlows.filter((flow) => flow.id && flow.id !== "")
+    : [];
+
+  // If no valid main page, don't set a value for select at all (undefined).
+  const safeMainPageId = filteredMainPages.length > 0
+    ? mainPageId && filteredMainPages.some(mp => mp.id === mainPageId) ? mainPageId : filteredMainPages[0].id
+    : undefined;
+
+  const safeSubPageId = filteredSubPages.length > 0
+    ? subPageId && filteredSubPages.some(sp => sp.id === subPageId) ? subPageId : filteredSubPages[0].id
+    : undefined;
+
+  const safeFlowId = filteredPageFlows.length > 0
+    ? flowId && filteredPageFlows.some(f => f.id === flowId) ? flowId : ""
+    : "";
+
+  // Effects to keep state in sync (for when main pages or subpages change):
+  React.useEffect(() => {
+    if (filteredMainPages.length > 0 && (!mainPageId || !filteredMainPages.some(mp => mp.id === mainPageId))) {
+      setMainPageId(filteredMainPages[0].id);
+    }
+  }, [filteredMainPages, mainPageId]);
+
+  React.useEffect(() => {
+    if (filteredSubPages.length > 0 && (!subPageId || !filteredSubPages.some(sp => sp.id === subPageId))) {
+      setSubPageId(filteredSubPages[0].id);
+    }
+  }, [filteredSubPages, subPageId]);
+
   // Loading indicator
   if (isLoading) {
     return <CreateSessionSkeleton />;
@@ -174,36 +209,40 @@ const CreateSessionForm = () => {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="main-page-type">Page Type</Label>
-            <Select value={mainPageId} onValueChange={setMainPageId}>
+            <Select
+              value={safeMainPageId}
+              onValueChange={setMainPageId}
+              disabled={filteredMainPages.length === 0}
+            >
               <SelectTrigger id="main-page-type">
                 <SelectValue placeholder="Select Page Type" />
               </SelectTrigger>
               <SelectContent>
-                {mainPages
-                  .filter((page) => page.id && page.id !== "")
-                  .map((page) => (
-                    <SelectItem key={page.id} value={page.id}>
-                      {page.name}
-                    </SelectItem>
-                  ))}
+                {filteredMainPages.map((page) => (
+                  <SelectItem key={page.id} value={page.id}>
+                    {page.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          {selectedMainPage && selectedMainPage.subPages?.length > 0 && (
+          {filteredSubPages.length > 0 && (
             <div className="space-y-2">
               <Label htmlFor="sub-page-type">Sub Page</Label>
-              <Select value={subPageId} onValueChange={setSubPageId}>
+              <Select
+                value={safeSubPageId}
+                onValueChange={setSubPageId}
+                disabled={filteredSubPages.length === 0}
+              >
                 <SelectTrigger id="sub-page-type">
                   <SelectValue placeholder="Select Sub Page" />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedMainPage.subPages
-                    .filter((subPage) => subPage.id && subPage.id !== "")
-                    .map((subPage) => (
-                      <SelectItem key={subPage.id} value={subPage.id}>
-                        {subPage.name}
-                      </SelectItem>
-                    ))}
+                  {filteredSubPages.map((subPage) => (
+                    <SelectItem key={subPage.id} value={subPage.id}>
+                      {subPage.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -224,20 +263,21 @@ const CreateSessionForm = () => {
           {/* Always render flow selector */}
           <div className="space-y-2">
             <Label htmlFor="flow-select">Session Flow</Label>
-            <Select value={flowId} onValueChange={setFlowId} disabled={flowsLoading || !!flowsError}>
+            <Select
+              value={safeFlowId}
+              onValueChange={setFlowId}
+              disabled={flowsLoading || !!flowsError}
+            >
               <SelectTrigger id="flow-select">
                 <SelectValue placeholder={flowsLoading ? "Loading flows..." : "No flow (manual)"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No flow (manual)</SelectItem>
-                {/* Only render flow options if loaded and not errored */}
-                {!flowsLoading && !flowsError && pageFlows
-                  .filter((flow) => flow.id && flow.id !== "")
-                  .map((flow) => (
-                    <SelectItem key={flow.id} value={flow.id}>
-                      {flow.name}
-                    </SelectItem>
-                  ))}
+                {!flowsLoading && !flowsError && filteredPageFlows.map((flow) => (
+                  <SelectItem key={flow.id} value={flow.id}>
+                    {flow.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {flowsError && (
