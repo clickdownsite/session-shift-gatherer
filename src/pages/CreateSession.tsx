@@ -1,4 +1,3 @@
-
 import React, { useState, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -16,6 +15,7 @@ const CreateSessionForm = () => {
   const navigate = useNavigate();
   const [mainPageId, setMainPageId] = useState('');
   const [subPageId, setSubPageId] = useState('');
+  const [creating, setCreating] = useState(false); // NEW: track loading state for the Create button
   const [sessionOptions, setSessionOptions] = useState({
     collectDeviceInfo: true,
     collectIPGeolocation: true,
@@ -60,12 +60,20 @@ const CreateSessionForm = () => {
       toast.error("Error", { description: "Please select both a page type and subpage" });
       return;
     }
-    createSession({ mainPageId, subPageId, sessionOptions }, {
-      onSuccess: () => {
-        toast.success("Session Created", { description: "New session has been created successfully." });
-        navigate('/dashboard');
+    setCreating(true); // Instant loading feedback
+    createSession(
+      { mainPageId, subPageId, sessionOptions },
+      {
+        onSuccess: () => {
+          toast.success("Session Created", { description: "New session has been created successfully." });
+          navigate('/dashboard');
+        },
+        onError: (err) => {
+          toast.error("Error", { description: err.message || "Failed to create session" });
+          setCreating(false);
+        }
       }
-    });
+    );
   };
 
   if (isLoading) {
@@ -131,8 +139,21 @@ const CreateSessionForm = () => {
           <Button variant="outline" onClick={() => navigate('/dashboard')}>
             Cancel
           </Button>
-          <Button onClick={handleCreateSession} disabled={!mainPageId || !subPageId}>
-            Create Session
+          <Button
+            onClick={handleCreateSession}
+            disabled={!mainPageId || !subPageId || creating}
+          >
+            {creating ? (
+              <span>
+                <svg className="inline animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Creating...
+              </span>
+            ) : (
+              'Create Session'
+            )}
           </Button>
         </CardFooter>
       </Card>

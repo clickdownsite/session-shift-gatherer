@@ -1,4 +1,3 @@
-
 import { useSessions as useSessionsHook } from './useSessions';
 import { useMainPages, useSubPages } from './usePageTemplates';
 import { useSessionData as useSessionDataHook } from './useSessionData';
@@ -14,23 +13,26 @@ type CreateSessionVariables = {
   sessionOptions?: Record<string, any>;
 };
 
+// Optimization: No longer lookup main page name before createSession — let DB handle it, or do this in dashboard UI later.
 export const useSupabaseSessions = () => {
   const sessionsHook = useSessionsHook();
   const { data: mainPages, isLoading: isLoadingMainPages } = useMainPages();
   const { data: subPages, isLoading: isLoadingSubPages } = useSubPages();
 
-  // Use useMemo to avoid recomputation unless underlying data changes
   const mainPagesList = useMemo(() => mainPages || [], [mainPages]);
   const subPagesList = useMemo(() => subPages || [], [subPages]);
 
+  // Directly pass minimal variables to the mutation for fastest possible DB insert
   const createSession = (
     variables: CreateSessionVariables,
     options?: MutateOptions<SessionType, Error, CreateSessionVariables, unknown>
   ) => {
-    // Lookup mainPage name (avoid looping if not needed)
-    const mainPage = mainPagesList.find(p => p.id === variables.mainPageId);
     sessionsHook.createSession(
-      { ...variables, pageName: mainPage?.name },
+      {
+        mainPageId: variables.mainPageId,
+        subPageId: variables.subPageId,
+        sessionOptions: variables.sessionOptions,
+      },
       options
     );
   };
