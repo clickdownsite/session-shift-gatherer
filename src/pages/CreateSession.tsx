@@ -1,3 +1,4 @@
+
 import React, { useState, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -10,13 +11,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import CreateSessionSkeleton from '@/components/session/CreateSessionSkeleton';
 import SessionSettings from '@/components/session/SessionSettings';
 import { usePageFlows } from '@/hooks/usePageFlows';
+import { useAuth } from '@/hooks/useAuth';
 
 const CreateSessionForm = () => {
-  const { createSession, mainPages: rawMainPages, subPages, isLoading } = useSupabaseSessions();
+  const { createSession, mainPages: rawMainPages, subPages, isLoading: sessionsLoading } = useSupabaseSessions();
   const navigate = useNavigate();
   const [mainPageId, setMainPageId] = useState('');
   const [subPageId, setSubPageId] = useState('');
-  const [creating, setCreating] = useState(false); // NEW: track loading state for the Create button
+  const [creating, setCreating] = useState(false);
   const [sessionOptions, setSessionOptions] = useState({
     collectDeviceInfo: true,
     collectIPGeolocation: true,
@@ -24,21 +26,58 @@ const CreateSessionForm = () => {
   });
   const [flowId, setFlowId] = useState('');
 
+  // Added: loading flags for page templates
+  const mainPagesLoading = !rawMainPages;
+  const subPagesLoading = !subPages;
+
+  // Defensive: treat loading as true if any hook is loading
+  const isLoading = sessionsLoading || mainPagesLoading || subPagesLoading;
+
+  // Defensive: parse result of useAuth for authentication guard
+  const { user, loading: authLoading } = useAuth();
+
+  // Guard: show skeleton or logged out splash if not logged in
+  if (authLoading) return <CreateSessionSkeleton />;
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-96 text-center">
+        <div>
+          <p className="text-lg font-semibold mb-3">You must be logged in to create a session.</p>
+          <Button onClick={() => navigate("/auth")}>Go to Login</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Defensive: fallback to empty arrays if undefined/null
+  const safeMainPages = rawMainPages ?? [];
+  const safeSubPages = subPages ?? [];
+
   // Memoize mainPages with their subPages for fast rendering
   const mainPages = React.useMemo(() => {
-    if (!rawMainPages?.length) return [];
-    const subMap = (subPages || []).reduce((acc, sp) => {
+    if (!safeMainPages.length) return [];
+    const subMap = (safeSubPages || []).reduce((acc, sp) => {
       if (sp.main_page_id) {
         acc[sp.main_page_id] = acc[sp.main_page_id] || [];
         acc[sp.main_page_id].push(sp);
       }
       return acc;
     }, {} as Record<string, any[]>);
-    return rawMainPages.map(mp => ({
+    return safeMainPages.map(mp => ({
       ...mp,
       subPages: subMap[mp.id] || [],
     }));
-  }, [rawMainPages, subPages]);
+  }, [safeMainPages, safeSubPages]);
+
+  // Defensive: states to track when initialization has happened to avoid empty list updates overwriting
+  const [mainIdInitialized, setMainIdInitialized] = useState(false);
+
+  React.useEffect(() => {
+    if (!mainIdInitialized && mainPages.length > 0 && !mainPageId) {
+      setMainPageId(mainPages[0].id);
+      setMainIdInitialized(true);
+    }
+  }, [mainPages, mainPageId, mainIdInitialized]);
 
   React.useEffect(() => {
     if (mainPageId && mainPages.length) {
@@ -46,9 +85,6 @@ const CreateSessionForm = () => {
       setSubPageId(selected?.subPages?.[0]?.id || '');
     }
   }, [mainPages, mainPageId]);
-  React.useEffect(() => {
-    if (!isLoading && mainPages.length && !mainPageId) setMainPageId(mainPages[0].id);
-  }, [mainPages, mainPageId, isLoading]);
 
   const selectedMainPage = mainPages.find(p => p.id === mainPageId);
   const selectedSubPage = selectedMainPage?.subPages?.find(p => p.id === subPageId);
@@ -57,15 +93,15 @@ const CreateSessionForm = () => {
     setSessionOptions(prev => ({ ...prev, [option]: value }));
   };
 
-  // Page flows (this was possibly missing or not always triggering render)
+  // Page flows
   const { data: pageFlows = [], isLoading: flowsLoading, error: flowsError } = usePageFlows();
 
   React.useEffect(() => {
     // Extra debug logging for diagnose
     console.log('[CreateSession] mainPages:', mainPages);
-    console.log('[CreateSession] subPages:', subPages);
+    console.log('[CreateSession] subPages:', safeSubPages);
     console.log('[CreateSession] pageFlows:', pageFlows, 'flowsLoading:', flowsLoading, 'flowsError:', flowsError);
-  }, [mainPages, subPages, pageFlows, flowsLoading, flowsError]);
+  }, [mainPages, safeSubPages, pageFlows, flowsLoading, flowsError]);
 
   const handleCreateSession = () => {
     if (!mainPageId || !subPageId) {
@@ -74,12 +110,10 @@ const CreateSessionForm = () => {
     }
     setCreating(true); // Instant loading feedback
 
-    // FIX: Remove flowId from the mutation object – instead, include it in sessionOptions or handle otherwise.
     createSession(
       { 
         mainPageId, 
         subPageId, 
-        // If you want to store flowId with the session, add it as a custom field:
         sessionOptions: { ...sessionOptions, ...(flowId ? { flowId } : {}) }
       },
       {
@@ -95,8 +129,39 @@ const CreateSessionForm = () => {
     );
   };
 
+  // Loading indicator
   if (isLoading) {
     return <CreateSessionSkeleton />;
+  }
+
+  // Show error if no main pages available
+  if (!mainPages.length) {
+    return (
+      <div className="flex flex-col gap-6 items-center justify-center h-96 text-center">
+        <div>
+          <p className="text-lg font-semibold mb-2">No page templates available</p>
+          <p className="text-muted-foreground mb-4">
+            You must create at least one main page and one sub page before starting a session.
+          </p>
+          <Button onClick={() => navigate("/user-pages")}>Create Page Templates</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if no subpages for chosen mainpage
+  if (selectedMainPage && selectedMainPage.subPages.length === 0) {
+    return (
+      <div className="flex flex-col gap-6 items-center justify-center h-96 text-center">
+        <div>
+          <p className="text-lg font-semibold mb-2">No sub pages available for this Page Type</p>
+          <p className="text-muted-foreground mb-4">
+            Each main page must have at least one sub page. Please add a sub page and try again.
+          </p>
+          <Button onClick={() => navigate("/user-pages")}>Manage Page Templates</Button>
+        </div>
+      </div>
+    );
   }
 
   return (
