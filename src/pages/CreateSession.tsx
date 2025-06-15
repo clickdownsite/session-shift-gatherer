@@ -113,7 +113,10 @@ const CreateSessionForm = () => {
       { 
         mainPageId, 
         subPageId, 
-        sessionOptions: { ...sessionOptions, ...(flowId ? { flowId } : {}) }
+        sessionOptions: { 
+          ...sessionOptions, 
+          ...(flowId && flowId !== "manual" ? { flowId } : {}) 
+        }
       },
       {
         onSuccess: () => {
@@ -137,6 +140,12 @@ const CreateSessionForm = () => {
     ? pageFlows.filter((flow) => flow.id && flow.id !== "")
     : [];
 
+  // --- FLOW SELECT: Use "manual" instead of empty string ---
+  // "manual" means no flow (manual navigation)
+  const safeFlowId = filteredPageFlows.length > 0
+    ? (flowId && filteredPageFlows.some(f => f.id === flowId) ? flowId : "manual")
+    : "manual";
+
   // If no valid main page, don't set a value for select at all (undefined).
   const safeMainPageId = filteredMainPages.length > 0
     ? mainPageId && filteredMainPages.some(mp => mp.id === mainPageId) ? mainPageId : filteredMainPages[0].id
@@ -145,10 +154,6 @@ const CreateSessionForm = () => {
   const safeSubPageId = filteredSubPages.length > 0
     ? subPageId && filteredSubPages.some(sp => sp.id === subPageId) ? subPageId : filteredSubPages[0].id
     : undefined;
-
-  const safeFlowId = filteredPageFlows.length > 0
-    ? flowId && filteredPageFlows.some(f => f.id === flowId) ? flowId : ""
-    : "";
 
   // Effects to keep state in sync (for when main pages or subpages change):
   React.useEffect(() => {
@@ -265,14 +270,14 @@ const CreateSessionForm = () => {
             <Label htmlFor="flow-select">Session Flow</Label>
             <Select
               value={safeFlowId}
-              onValueChange={setFlowId}
+              onValueChange={(id) => setFlowId(id)}
               disabled={flowsLoading || !!flowsError}
             >
               <SelectTrigger id="flow-select">
                 <SelectValue placeholder={flowsLoading ? "Loading flows..." : "No flow (manual)"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No flow (manual)</SelectItem>
+                <SelectItem value="manual">No flow (manual)</SelectItem>
                 {!flowsLoading && !flowsError && filteredPageFlows.map((flow) => (
                   <SelectItem key={flow.id} value={flow.id}>
                     {flow.name}
