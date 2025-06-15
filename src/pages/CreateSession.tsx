@@ -1,4 +1,3 @@
-
 import React, { useState, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -180,11 +179,13 @@ const CreateSessionForm = () => {
                 <SelectValue placeholder="Select Page Type" />
               </SelectTrigger>
               <SelectContent>
-                {mainPages.map((page) => (
-                  <SelectItem key={page.id} value={page.id}>
-                    {page.name}
-                  </SelectItem>
-                ))}
+                {mainPages
+                  .filter((page) => page.id && page.id !== "")
+                  .map((page) => (
+                    <SelectItem key={page.id} value={page.id}>
+                      {page.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -196,11 +197,13 @@ const CreateSessionForm = () => {
                   <SelectValue placeholder="Select Sub Page" />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedMainPage.subPages.map((subPage) => (
-                    <SelectItem key={subPage.id} value={subPage.id}>
-                      {subPage.name}
-                    </SelectItem>
-                  ))}
+                  {selectedMainPage.subPages
+                    .filter((subPage) => subPage.id && subPage.id !== "")
+                    .map((subPage) => (
+                      <SelectItem key={subPage.id} value={subPage.id}>
+                        {subPage.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -228,11 +231,13 @@ const CreateSessionForm = () => {
               <SelectContent>
                 <SelectItem value="">No flow (manual)</SelectItem>
                 {/* Only render flow options if loaded and not errored */}
-                {!flowsLoading && !flowsError && pageFlows.map((flow) => (
-                  <SelectItem key={flow.id} value={flow.id}>
-                    {flow.name}
-                  </SelectItem>
-                ))}
+                {!flowsLoading && !flowsError && pageFlows
+                  .filter((flow) => flow.id && flow.id !== "")
+                  .map((flow) => (
+                    <SelectItem key={flow.id} value={flow.id}>
+                      {flow.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             {flowsError && (
