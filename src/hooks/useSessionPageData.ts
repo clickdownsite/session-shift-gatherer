@@ -27,7 +27,7 @@ export const useSessionPageData = (sessionId: string | undefined) => {
 
   const fetchPageData = useCallback(async () => {
     console.log('fetchPageData called with sessionId:', sessionId);
-    
+
     if (!sessionId) {
       console.error('No session ID provided');
       setError('No session ID provided');
@@ -39,7 +39,7 @@ export const useSessionPageData = (sessionId: string | undefined) => {
       console.log('Starting to fetch session data for:', sessionId);
       setLoading(true);
       setError(null);
-      
+
       // First, get the session data
       console.log('Fetching session...');
       const { data: sessionData, error: sessionError } = await supabase
@@ -73,7 +73,7 @@ export const useSessionPageData = (sessionId: string | undefined) => {
 
       console.log('Session is valid, fetching main page and current sub page for main page ID:', sessionData.main_page_id);
 
-      // Get the main page data and the CURRENT sub page data in parallel
+      // Only fetch main page ONCE at load
       const mainPageQuery = supabase
         .from('main_pages')
         .select('id, name, description')
@@ -117,7 +117,7 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         setLoading(false);
         return;
       }
-      
+
       if (!subPageData) {
         console.error('Current sub page not found, or it does not belong to the main page.', {
           subPageId: sessionData.current_sub_page_id,
@@ -128,37 +128,64 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         return;
       }
 
-      console.log('All data loaded successfully, setting state...');
-
-      // Set the data
       setMainPage(mainPageData as MainPageData);
       setCurrentSubPage(subPageData as SubPageData);
-      
-      console.log('Session data loaded successfully:', {
-        mainPage: mainPageData,
-        currentSubPage: subPageData,
-      });
-      
+      setLoading(false);
+
     } catch (error) {
       console.error('Unexpected error fetching page data:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setError(`Failed to load page: ${errorMessage}`);
-    } finally {
       setLoading(false);
     }
   }, [sessionId]);
 
+  // Like fetchPageData, but only switch the sub page (NO mainPage reload)
+  const switchSubPage = useCallback(async (subPageId: string) => {
+    if (!mainPage || !sessionId) {
+      setError('No session or main page loaded.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: subPageData, error: subPageError } = await supabase
+        .from('sub_pages')
+        .select('*')
+        .eq('id', subPageId)
+        .eq('main_page_id', mainPage.id)
+        .maybeSingle();
+
+      if (subPageError) {
+        setError(`Failed to load sub page: ${subPageError.message}`);
+        setLoading(false);
+        return;
+      }
+      if (!subPageData) {
+        setError('Sub page not found');
+        setLoading(false);
+        return;
+      }
+      setCurrentSubPage(subPageData as SubPageData);
+    } catch (e) {
+      const err = e as Error;
+      setError(`Failed to switch page: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [mainPage, sessionId]);
+
   useEffect(() => {
-    console.log('useEffect triggered with sessionId:', sessionId);
     fetchPageData();
   }, [fetchPageData]);
 
-  return { 
-    mainPage, 
-    currentSubPage, 
-    loading, 
-    error, 
+  return {
+    mainPage,
+    currentSubPage,
+    loading,
+    error,
     setCurrentSubPage,
-    refetch: fetchPageData
+    refetch: fetchPageData,
+    switchSubPage, // <-- add this so consumers can use it
   };
 };
