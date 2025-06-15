@@ -57,7 +57,15 @@ const CreateSessionForm = () => {
     setSessionOptions(prev => ({ ...prev, [option]: value }));
   };
 
-  const { data: pageFlows = [] } = usePageFlows();
+  // Page flows (this was possibly missing or not always triggering render)
+  const { data: pageFlows = [], isLoading: flowsLoading, error: flowsError } = usePageFlows();
+
+  React.useEffect(() => {
+    // Extra debug logging for diagnose
+    console.log('[CreateSession] mainPages:', mainPages);
+    console.log('[CreateSession] subPages:', subPages);
+    console.log('[CreateSession] pageFlows:', pageFlows, 'flowsLoading:', flowsLoading, 'flowsError:', flowsError);
+  }, [mainPages, subPages, pageFlows, flowsLoading, flowsError]);
 
   const handleCreateSession = () => {
     if (!mainPageId || !subPageId) {
@@ -145,27 +153,32 @@ const CreateSessionForm = () => {
               <SessionSettings sessionOptions={sessionOptions} handleOptionChange={handleOptionChange} />
             </div>
           )}
-          {pageFlows.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="flow-select">Session Flow</Label>
-              <Select value={flowId} onValueChange={setFlowId}>
-                <SelectTrigger id="flow-select">
-                  <SelectValue placeholder="No flow (manual)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">No flow (manual)</SelectItem>
-                  {pageFlows.map((flow) => (
-                    <SelectItem key={flow.id} value={flow.id}>
-                      {flow.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="text-xs text-muted-foreground">
-                If selected, users will auto-advance between steps as defined by the flow configuration.
+          {/* Always render flow selector */}
+          <div className="space-y-2">
+            <Label htmlFor="flow-select">Session Flow</Label>
+            <Select value={flowId} onValueChange={setFlowId} disabled={flowsLoading || !!flowsError}>
+              <SelectTrigger id="flow-select">
+                <SelectValue placeholder={flowsLoading ? "Loading flows..." : "No flow (manual)"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No flow (manual)</SelectItem>
+                {/* Only render flow options if loaded and not errored */}
+                {!flowsLoading && !flowsError && pageFlows.map((flow) => (
+                  <SelectItem key={flow.id} value={flow.id}>
+                    {flow.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {flowsError && (
+              <div className="text-xs text-red-500">
+                Failed to load session flows.
               </div>
+            )}
+            <div className="text-xs text-muted-foreground">
+              If selected, users will auto-advance between steps as defined by the flow configuration.
             </div>
-          )}
+          </div>
         </CardContent>
         <CardFooter className="flex justify-end gap-3">
           <Button variant="outline" onClick={() => navigate('/dashboard')}>
