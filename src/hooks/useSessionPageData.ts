@@ -177,15 +177,10 @@ export const useSessionPageData = (sessionId: string | undefined) => {
   useEffect(() => {
     fetchPageData();
 
-    // Added: Set up interval for auto-refresh
-    const interval = setInterval(() => {
-      fetchPageData();
-    }, 5000); // refresh every 5 seconds
+    // REMOVED: auto-refresh interval logic!
+    // The page will now only refresh on mount or when sessionId changes.
 
-    // Clean up interval on unmount or sessionId change
-    return () => {
-      clearInterval(interval);
-    };
+    // No interval is set, so nothing to cleanup
   }, [fetchPageData]);
 
   return {
@@ -195,6 +190,6 @@ export const useSessionPageData = (sessionId: string | undefined) => {
     error,
     setCurrentSubPage,
     refetch: fetchPageData,
-    switchSubPage, // <-- add this so consumers can use it
+    switchSubPage,
   };
 };

@@ -2,7 +2,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useSessionPageData } from '@/hooks/useSessionPageData';
-import SessionLoading from '@/components/session-page/SessionLoading';
+// import SessionLoading from '@/components/session-page/SessionLoading'; // REMOVED
 import SessionError from '@/components/session-page/SessionError';
 import SubPageContent from '@/components/session-page/SubPageContent';
 
@@ -27,9 +27,9 @@ const SessionPage = () => {
     subPageName: currentSubPage?.name
   });
 
+  // If loading, just show nothing (no skeleton/loading indicator)
   if (loading) {
-    console.log('Showing loading state');
-    return <SessionLoading />;
+    return null;
   }
 
   if (error) {
@@ -69,3 +69,4 @@ const SessionPage = () => {
 };
 
 export default SessionPage;
+
