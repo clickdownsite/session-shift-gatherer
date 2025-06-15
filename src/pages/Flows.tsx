@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,7 +31,13 @@ type PageFlow = {
 const fetchPageFlows = async (): Promise<PageFlow[]> => {
   const { data, error } = await supabase.from("page_flows").select("*").order("updated_at", { ascending: false });
   if (error) throw error;
-  return data as PageFlow[];
+  // Fix: Ensure steps is FlowStep[]
+  return (data as any[]).map((row): PageFlow => ({
+    ...row,
+    steps: Array.isArray(row.steps)
+      ? (row.steps as FlowStep[])
+      : [],
+  }));
 };
 
 const fetchSubPages = async (): Promise<SubPage[]> => {
