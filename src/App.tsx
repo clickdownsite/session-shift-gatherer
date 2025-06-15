@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +24,7 @@ import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import Layout from "./components/Layout";
 import AdminLayout from "./components/AdminLayout";
 import NotFound from "./pages/NotFound";
+import FlowsPage from "./pages/Flows";
 
 // Admin Pages
 import AdminLogin from "./pages/AdminLogin";
@@ -82,6 +82,7 @@ const App = () => (
                     <Route path="dashboard" element={<Dashboard />} />
                     <Route path="create-session" element={<CreateSession />} />
                     <Route path="user-pages" element={<UserPages />} />
+                    <Route path="flows" element={<FlowsPage />} />
                     <Route path="history" element={<History />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="profile" element={<Profile />} />

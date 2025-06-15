@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import SubPageDialogContent from '@/components/user-pages/SubPageDialogContent';
 import PreviewDialogContent from '@/components/user-pages/PreviewDialogContent';
 import { useUserPages } from '@/hooks/useUserPages';
 import MainPageCard from '@/components/user-pages/MainPageCard';
+import { Link } from "react-router-dom";
 
 const UserPages = () => {
   const { user } = useAuth();
@@ -57,10 +57,15 @@ const UserPages = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">My Custom Pages</h1>
-        <Button onClick={openCreateMainPage}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create New Page
-        </Button>
+        <div className="flex gap-3">
+          <Button asChild>
+            <Link to="/flows">Manage Flows</Link>
+          </Button>
+          <Button onClick={openCreateMainPage}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create New Page
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6">
