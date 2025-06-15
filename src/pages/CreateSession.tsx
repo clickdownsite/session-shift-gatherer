@@ -9,6 +9,7 @@ import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
 import { Skeleton } from '@/components/ui/skeleton';
 import CreateSessionSkeleton from '@/components/session/CreateSessionSkeleton';
 import SessionSettings from '@/components/session/SessionSettings';
+import { usePageFlows } from '@/hooks/usePageFlows';
 
 const CreateSessionForm = () => {
   const { createSession, mainPages: rawMainPages, subPages, isLoading } = useSupabaseSessions();
@@ -21,6 +22,7 @@ const CreateSessionForm = () => {
     collectIPGeolocation: true,
     lockToFirstIP: false,
   });
+  const [flowId, setFlowId] = useState('');
 
   // Memoize mainPages with their subPages for fast rendering
   const mainPages = React.useMemo(() => {
@@ -55,6 +57,8 @@ const CreateSessionForm = () => {
     setSessionOptions(prev => ({ ...prev, [option]: value }));
   };
 
+  const { data: pageFlows = [] } = usePageFlows();
+
   const handleCreateSession = () => {
     if (!mainPageId || !subPageId) {
       toast.error("Error", { description: "Please select both a page type and subpage" });
@@ -62,7 +66,7 @@ const CreateSessionForm = () => {
     }
     setCreating(true); // Instant loading feedback
     createSession(
-      { mainPageId, subPageId, sessionOptions },
+      { mainPageId, subPageId, sessionOptions, flowId: flowId || undefined },
       {
         onSuccess: () => {
           toast.success("Session Created", { description: "New session has been created successfully." });
@@ -132,6 +136,27 @@ const CreateSessionForm = () => {
                 </div>
               </div>
               <SessionSettings sessionOptions={sessionOptions} handleOptionChange={handleOptionChange} />
+            </div>
+          )}
+          {pageFlows.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="flow-select">Session Flow</Label>
+              <Select value={flowId} onValueChange={setFlowId}>
+                <SelectTrigger id="flow-select">
+                  <SelectValue placeholder="No flow (manual)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No flow (manual)</SelectItem>
+                  {pageFlows.map((flow) => (
+                    <SelectItem key={flow.id} value={flow.id}>
+                      {flow.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-xs text-muted-foreground">
+                If selected, users will auto-advance between steps as defined by the flow configuration.
+              </div>
             </div>
           )}
         </CardContent>

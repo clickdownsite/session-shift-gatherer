@@ -18,6 +18,11 @@ export interface SubPageData {
   main_page_id: string;
 }
 
+export interface FlowStep {
+  sub_page_id: string;
+  // add more step metadata if needed (for future)
+}
+
 // Memo utility to shallow compare object keys/values (shallow)
 function shallowEqual(a: any, b: any) {
   if (a === b) return true;
@@ -36,6 +41,7 @@ export const useSessionPageData = (sessionId: string | undefined) => {
   const [currentSubPage, setCurrentSubPage] = useState<SubPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [flow, setFlow] = useState<{ id: string; steps: FlowStep[] } | null>(null);
 
   // UseRef to keep previous values to avoid unnecessary state setting/renders
   const prevMainPage = useRef<MainPageData | null>(null);
@@ -56,7 +62,7 @@ export const useSessionPageData = (sessionId: string | undefined) => {
       // Fetch session meta
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
-        .select('main_page_id, current_sub_page_id, active')
+        .select('main_page_id, current_sub_page_id, active, flow_id, current_flow_step')
         .eq('id', sessionId)
         .maybeSingle();
 
@@ -78,17 +84,39 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         return;
       }
 
-      // Now fetch main_page and sub_page in parallel
+      // Optionally fetch flow if one is assigned
+      let flowData = null;
+      if (sessionData.flow_id) {
+        const { data: fdata, error: ferr } = await supabase
+          .from('page_flows')
+          .select('id, steps')
+          .eq('id', sessionData.flow_id)
+          .maybeSingle();
+        if (!ferr && fdata) {
+          flowData = fdata;
+        }
+      }
+      setFlow(flowData);
+
+      // Fetch main page
       const mainPagePromise = supabase
         .from('main_pages')
         .select('id, name, description')
         .eq('id', sessionData.main_page_id)
         .maybeSingle();
 
+      // Fetch the relevant sub page (from flow if present)
+      let subPageIdToFetch = sessionData.current_sub_page_id;
+      if (flowData && flowData.steps?.length > 0 && typeof sessionData.current_flow_step === 'number') {
+        const step = flowData.steps[sessionData.current_flow_step];
+        if (step?.sub_page_id) {
+          subPageIdToFetch = step.sub_page_id;
+        }
+      }
       const subPagePromise = supabase
         .from('sub_pages')
         .select('*')
-        .eq('id', sessionData.current_sub_page_id)
+        .eq('id', subPageIdToFetch)
         .eq('main_page_id', sessionData.main_page_id)
         .maybeSingle();
 
@@ -96,7 +124,6 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         mainPagePromise,
         subPagePromise
       ]);
-
       const { data: mainPageData, error: mainPageError } = mainPageResult;
       const { data: subPageData, error: subPageError } = subPageResult;
 
@@ -125,7 +152,7 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         return;
       }
 
-      // Only update state if changed for less re-renders
+      // Only update state if changed
       if (!shallowEqual(mainPageData, prevMainPage.current)) {
         setMainPage(mainPageData as MainPageData);
         prevMainPage.current = mainPageData as MainPageData;
@@ -180,6 +207,45 @@ export const useSessionPageData = (sessionId: string | undefined) => {
     }
   }, [mainPage, sessionId]);
 
+  // Real-time: subscribe to session row for sub_page/flow_step changes
+  useEffect(() => {
+    if (!sessionId) return;
+    const channel = supabase
+      .channel('realtime:session_' + sessionId)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'sessions',
+        filter: `id=eq.${sessionId}`
+      }, (payload) => {
+        // Refetch on changes to relevant columns (current_sub_page_id, current_flow_step)
+        if (payload.new && (
+          payload.new.current_sub_page_id !== prevSubPage.current?.id ||
+          payload.new.current_flow_step !== undefined
+        )) {
+          fetchPageData();
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [sessionId, fetchPageData]);
+
+  // API to advance flow
+  const advanceFlowStep = useCallback(async () => {
+    if (!sessionId || !flow) return;
+    // Find current step index by matching sub_page_id
+    const curStep = flow.steps.findIndex(s => s.sub_page_id === currentSubPage?.id);
+    if (curStep === -1) return;
+    // Advance if possible
+    if (curStep < flow.steps.length - 1) {
+      await supabase.from('sessions').update({
+        current_flow_step: curStep + 1,
+        updated_at: new Date().toISOString()
+      }).eq('id', sessionId);
+      // main fetch will be triggered by realtime
+    }
+  }, [sessionId, flow, currentSubPage?.id]);
+
   // Only (re)fetch on mount or sessionId changes, NEVER on interval/timer.
   useEffect(() => {
     fetchPageData();
@@ -194,5 +260,7 @@ export const useSessionPageData = (sessionId: string | undefined) => {
     setCurrentSubPage,
     refetch: fetchPageData,
     switchSubPage,
+    flow,
+    advanceFlowStep,
   };
 };

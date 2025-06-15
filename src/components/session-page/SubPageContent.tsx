@@ -1,9 +1,9 @@
-
 import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { SubPageData } from '@/hooks/useSessionPageData';
 import { useSessionOptions } from '@/hooks/useSessionOptions';
+import { useSessionPageData } from '@/hooks/useSessionPageData';
 
 interface SubPageContentProps {
   sessionId: string | undefined;
@@ -14,6 +14,7 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
   const containerRef = useRef<HTMLDivElement>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
   const { sessionOptions } = useSessionOptions(sessionId);
+  const { flow, advanceFlowStep } = useSessionPageData(sessionId);
 
   console.log('SubPageContent render:', {
     sessionId,
@@ -68,11 +69,16 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
       
       console.log('Session data submitted successfully');
       toast.success('Data submitted successfully!');
+      
+      // If assigned to a flow, advance to next step
+      if (flow) {
+        await advanceFlowStep();
+      }
     } catch (error) {
       console.error('Error submitting data:', error);
       toast.error('Failed to submit data. Please try again.');
     }
-  }, [sessionId, sessionOptions]);
+  }, [sessionId, sessionOptions, flow, advanceFlowStep]);
 
   // Handle form submission
   const handleSubmit = useCallback((event: Event) => {

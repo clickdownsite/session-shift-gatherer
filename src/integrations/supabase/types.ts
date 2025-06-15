@@ -315,6 +315,7 @@ export type Database = {
           id: string
           name: string
           start_page_id: string | null
+          steps: Json | null
           updated_at: string
         }
         Insert: {
@@ -325,6 +326,7 @@ export type Database = {
           id?: string
           name: string
           start_page_id?: string | null
+          steps?: Json | null
           updated_at?: string
         }
         Update: {
@@ -335,6 +337,7 @@ export type Database = {
           id?: string
           name?: string
           start_page_id?: string | null
+          steps?: Json | null
           updated_at?: string
         }
         Relationships: []
@@ -443,8 +446,10 @@ export type Database = {
         Row: {
           active: boolean | null
           created_at: string | null
+          current_flow_step: number
           current_sub_page_id: string
           first_viewer_ip: string | null
+          flow_id: string | null
           has_new_data: boolean | null
           id: string
           main_page_id: string
@@ -456,8 +461,10 @@ export type Database = {
         Insert: {
           active?: boolean | null
           created_at?: string | null
+          current_flow_step?: number
           current_sub_page_id: string
           first_viewer_ip?: string | null
+          flow_id?: string | null
           has_new_data?: boolean | null
           id: string
           main_page_id: string
@@ -469,8 +476,10 @@ export type Database = {
         Update: {
           active?: boolean | null
           created_at?: string | null
+          current_flow_step?: number
           current_sub_page_id?: string
           first_viewer_ip?: string | null
+          flow_id?: string | null
           has_new_data?: boolean | null
           id?: string
           main_page_id?: string
