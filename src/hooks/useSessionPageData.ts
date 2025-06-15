@@ -218,11 +218,15 @@ export const useSessionPageData = (sessionId: string | undefined) => {
         table: 'sessions',
         filter: `id=eq.${sessionId}`
       }, (payload) => {
-        // Refetch on changes to relevant columns (current_sub_page_id, current_flow_step)
-        if (payload.new && (
-          payload.new.current_sub_page_id !== prevSubPage.current?.id ||
-          payload.new.current_flow_step !== undefined
-        )) {
+        // --- FIX: Safe access to payload.new properties
+        const newValue = payload.new as any;
+        if (
+          newValue &&
+          (
+            newValue.current_sub_page_id !== prevSubPage.current?.id ||
+            typeof newValue.current_flow_step !== "undefined"
+          )
+        ) {
           fetchPageData();
         }
       })

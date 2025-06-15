@@ -65,8 +65,15 @@ const CreateSessionForm = () => {
       return;
     }
     setCreating(true); // Instant loading feedback
+
+    // FIX: Remove flowId from the mutation object – instead, include it in sessionOptions or handle otherwise.
     createSession(
-      { mainPageId, subPageId, sessionOptions, flowId: flowId || undefined },
+      { 
+        mainPageId, 
+        subPageId, 
+        // If you want to store flowId with the session, add it as a custom field:
+        sessionOptions: { ...sessionOptions, ...(flowId ? { flowId } : {}) }
+      },
       {
         onSuccess: () => {
           toast.success("Session Created", { description: "New session has been created successfully." });
