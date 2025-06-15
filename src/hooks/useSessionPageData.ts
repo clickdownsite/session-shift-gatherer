@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -177,6 +176,16 @@ export const useSessionPageData = (sessionId: string | undefined) => {
 
   useEffect(() => {
     fetchPageData();
+
+    // Added: Set up interval for auto-refresh
+    const interval = setInterval(() => {
+      fetchPageData();
+    }, 5000); // refresh every 5 seconds
+
+    // Clean up interval on unmount or sessionId change
+    return () => {
+      clearInterval(interval);
+    };
   }, [fetchPageData]);
 
   return {
