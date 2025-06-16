@@ -1,9 +1,9 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import type { Session } from '@/types/session';
-import { MutateOptions } from '@tanstack/react-query';
 
 type CreateSessionVariables = {
   mainPageId: string;
@@ -32,13 +32,10 @@ export const useSessions = () => {
     enabled: !!user,
   });
 
-  const createSessionMutation = useMutation<
-    Session,
-    Error,
-    CreateSessionVariables
-  >({
-    mutationFn: async ({ mainPageId, subPageId, sessionOptions, pageName }) => {
+  const createSessionMutation = useMutation<Session, Error, CreateSessionVariables>({
+    mutationFn: async ({ mainPageId, subPageId, sessionOptions }) => {
       if (!user) throw new Error('User not authenticated');
+      
       const sessionId = Math.random().toString(36).substring(2, 8);
       const { data, error } = await supabase
         .from('sessions')
@@ -47,21 +44,19 @@ export const useSessions = () => {
           user_id: user.id,
           main_page_id: mainPageId,
           current_sub_page_id: subPageId,
-          page_type: pageName,
           active: true,
           has_new_data: false,
           session_options: sessionOptions || {},
         })
         .select()
         .single();
-      if (error) {
-        console.error("Error creating session:", error);
-        throw error;
-      }
+      
+      if (error) throw error;
       return data as Session;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      toast.success('Session created successfully!');
     },
     onError: (error) => {
       toast.error("Failed to create session", {
@@ -94,31 +89,14 @@ export const useSessions = () => {
         .eq('id', sessionId);
       if (error) throw error;
     },
-    onMutate: async (sessionId: string) => {
-      await queryClient.cancelQueries({ queryKey: ['sessions', user?.id] });
-      const previousSessions = queryClient.getQueryData<Session[]>(['sessions', user?.id]);
-      queryClient.setQueryData<Session[]>(
-        ['sessions', user?.id],
-        (old) => old?.filter((session) => session.id !== sessionId) ?? []
-      );
-      return { previousSessions };
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions', user?.id] });
+      toast.success("Session closed successfully");
     },
-    onError: (error, sessionId, context) => {
-      if (context?.previousSessions) {
-        queryClient.setQueryData(['sessions', user?.id], context.previousSessions as any);
-      }
+    onError: (error) => {
       toast.error("Failed to close session", {
         description: error.message,
       });
-    },
-    onSuccess: () => {
-      toast.success("Session Closed", {
-        description: "The session has been marked as inactive."
-      });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['sessions', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['historical_sessions', user?.id] });
     },
   });
 

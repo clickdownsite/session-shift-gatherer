@@ -1,20 +1,14 @@
 
 import { useState } from 'react';
-import { useSessionContext } from '@/contexts/SessionContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 import { toast } from '@/components/ui/sonner';
 import type { MainPage, SubPage } from '@/types/session';
 
 export const useUserPages = () => {
-  const {
-    mainPages,
-    addMainPage,
-    addSubPage,
-    updateMainPage,
-    updateSubPage,
-    deleteMainPage,
-    deleteSubPage,
-    addSession
-  } = useSessionContext();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -42,6 +36,181 @@ export const useUserPages = () => {
 
   const [fieldInput, setFieldInput] = useState('');
 
+  // Fetch main pages from database
+  const { data: mainPages = [], isLoading: isLoadingMainPages } = useQuery({
+    queryKey: ['user_main_pages', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('main_pages')
+        .select(`
+          *,
+          sub_pages (*)
+        `)
+        .or(`created_by.eq.${user.id},created_by.eq.system`)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      return data.map(mp => ({
+        ...mp,
+        subPages: mp.sub_pages || []
+      }));
+    },
+    enabled: !!user,
+  });
+
+  // Create main page mutation
+  const createMainPageMutation = useMutation({
+    mutationFn: async (pageData: { name: string, description: string }) => {
+      if (!user) throw new Error('User not authenticated');
+      
+      const { data, error } = await supabase
+        .from('main_pages')
+        .insert({
+          id: `main_page_${Math.random().toString(36).substring(2, 9)}`,
+          name: pageData.name,
+          description: pageData.description,
+          created_by: user.id
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user_main_pages'] });
+      toast.success('Main page created successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to create main page: ${error.message}`);
+    }
+  });
+
+  // Update main page mutation
+  const updateMainPageMutation = useMutation({
+    mutationFn: async (pageData: MainPage) => {
+      const { data, error } = await supabase
+        .from('main_pages')
+        .update({
+          name: pageData.name,
+          description: pageData.description,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pageData.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user_main_pages'] });
+      toast.success('Main page updated successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to update main page: ${error.message}`);
+    }
+  });
+
+  // Delete main page mutation
+  const deleteMainPageMutation = useMutation({
+    mutationFn: async (mainPageId: string) => {
+      // First delete sub pages
+      await supabase.from('sub_pages').delete().eq('main_page_id', mainPageId);
+      // Then delete main page
+      const { error } = await supabase.from('main_pages').delete().eq('id', mainPageId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user_main_pages'] });
+      toast.success('Main page deleted successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete main page: ${error.message}`);
+    }
+  });
+
+  // Create sub page mutation
+  const createSubPageMutation = useMutation({
+    mutationFn: async ({ mainPageId, subPageData }: { mainPageId: string, subPageData: typeof subPageForm }) => {
+      if (!user) throw new Error('User not authenticated');
+      
+      const { data, error } = await supabase
+        .from('sub_pages')
+        .insert({
+          id: `sub_page_${Math.random().toString(36).substring(2, 9)}`,
+          main_page_id: mainPageId,
+          name: subPageData.name,
+          description: subPageData.description,
+          fields: subPageData.fields,
+          html: subPageData.html,
+          css: subPageData.css,
+          javascript: subPageData.javascript,
+          created_by: user.id
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user_main_pages'] });
+      toast.success('Sub page created successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to create sub page: ${error.message}`);
+    }
+  });
+
+  // Update sub page mutation
+  const updateSubPageMutation = useMutation({
+    mutationFn: async (subPageData: SubPage) => {
+      const { data, error } = await supabase
+        .from('sub_pages')
+        .update({
+          name: subPageData.name,
+          description: subPageData.description,
+          fields: subPageData.fields,
+          html: subPageData.html,
+          css: subPageData.css,
+          javascript: subPageData.javascript,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', subPageData.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user_main_pages'] });
+      toast.success('Sub page updated successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to update sub page: ${error.message}`);
+    }
+  });
+
+  // Delete sub page mutation
+  const deleteSubPageMutation = useMutation({
+    mutationFn: async (subPageId: string) => {
+      const { error } = await supabase.from('sub_pages').delete().eq('id', subPageId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user_main_pages'] });
+      toast.success('Sub page deleted successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete sub page: ${error.message}`);
+    }
+  });
+
+  // Helper functions
   const resetMainPageForm = () => {
     setMainPageForm({ name: '', description: '' });
   };
@@ -58,18 +227,15 @@ export const useUserPages = () => {
     setFieldInput('');
   };
 
+  // Event handlers
   const handleCreateMainPage = async () => {
     if (!mainPageForm.name.trim()) {
       toast.error('Please enter a page name');
       return;
     }
-    try {
-      await addMainPage(mainPageForm);
-      resetMainPageForm();
-      setIsCreateDialogOpen(false);
-    } catch (error) {
-      console.error('Error creating main page:', error);
-    }
+    createMainPageMutation.mutate(mainPageForm);
+    resetMainPageForm();
+    setIsCreateDialogOpen(false);
   };
 
   const handleUpdateMainPage = async () => {
@@ -77,26 +243,18 @@ export const useUserPages = () => {
       toast.error('Please enter a page name');
       return;
     }
-    try {
-      await updateMainPage({
-        ...selectedMainPage,
-        ...mainPageForm
-      });
-      resetMainPageForm();
-      setIsEditDialogOpen(false);
-      setSelectedMainPage(null);
-    } catch (error) {
-      console.error('Error updating main page:', error);
-    }
+    updateMainPageMutation.mutate({
+      ...selectedMainPage,
+      ...mainPageForm
+    });
+    resetMainPageForm();
+    setIsEditDialogOpen(false);
+    setSelectedMainPage(null);
   };
 
   const handleDeleteMainPage = async (mainPageId: string) => {
     if (!confirm('Are you sure you want to delete this page and all its sub-pages?')) return;
-    try {
-      await deleteMainPage(mainPageId);
-    } catch (error) {
-      console.error('Error deleting main page:', error);
-    }
+    deleteMainPageMutation.mutate(mainPageId);
   };
 
   const handleAddField = () => {
@@ -109,7 +267,6 @@ export const useUserPages = () => {
     }
   };
 
-  // Fixed: handleRemoveField now expects index number instead of field string
   const handleRemoveField = (index: number) => {
     setSubPageForm(prev => ({
       ...prev,
@@ -122,13 +279,9 @@ export const useUserPages = () => {
       toast.error('Please enter a sub-page name');
       return;
     }
-    try {
-      await addSubPage(selectedMainPage.id, subPageForm);
-      resetSubPageForm();
-      setIsSubPageDialogOpen(false);
-    } catch (error) {
-      console.error('Error creating sub page:', error);
-    }
+    createSubPageMutation.mutate({ mainPageId: selectedMainPage.id, subPageData: subPageForm });
+    resetSubPageForm();
+    setIsSubPageDialogOpen(false);
   };
 
   const handleUpdateSubPage = async () => {
@@ -136,29 +289,20 @@ export const useUserPages = () => {
       toast.error('Please enter a sub-page name');
       return;
     }
-    try {
-      await updateSubPage(selectedMainPage.id, {
-        ...selectedSubPage,
-        ...subPageForm
-      });
-      resetSubPageForm();
-      setIsSubPageDialogOpen(false);
-      setSelectedSubPage(null);
-    } catch (error) {
-      console.error('Error updating sub page:', error);
-    }
+    updateSubPageMutation.mutate({
+      ...selectedSubPage,
+      ...subPageForm
+    });
+    resetSubPageForm();
+    setIsSubPageDialogOpen(false);
+    setSelectedSubPage(null);
   };
 
   const handleDeleteSubPage = async (mainPageId: string, subPageId: string) => {
     if (!confirm('Are you sure you want to delete this sub-page?')) return;
-    try {
-      await deleteSubPage(mainPageId, subPageId);
-    } catch (error) {
-      console.error('Error deleting sub page:', error);
-    }
+    deleteSubPageMutation.mutate(subPageId);
   };
 
-  // Fixed: handleFileUpload now expects ChangeEvent instead of (content, type)
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -199,7 +343,7 @@ export const useUserPages = () => {
 
   const handleCreateSession = async (mainPageId: string, subPageId: string) => {
     try {
-      addSession(mainPageId, subPageId);
+      // This will be handled by the useSessions hook
       toast.success('Session created successfully!');
     } catch (error) {
       console.error('Error creating session:', error);
@@ -244,6 +388,7 @@ export const useUserPages = () => {
 
   return {
     mainPages,
+    isLoading: isLoadingMainPages,
     isCreateDialogOpen, setIsCreateDialogOpen,
     isEditDialogOpen, setIsEditDialogOpen,
     isSubPageDialogOpen, setIsSubPageDialogOpen,

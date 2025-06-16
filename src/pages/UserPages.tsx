@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import MainPageDialogContent from '@/components/user-pages/MainPageDialogContent';
 import SubPageDialogContent from '@/components/user-pages/SubPageDialogContent';
@@ -16,6 +16,7 @@ const UserPages = () => {
   const { user } = useAuth();
   const {
     mainPages,
+    isLoading,
     isCreateDialogOpen, setIsCreateDialogOpen,
     isEditDialogOpen, setIsEditDialogOpen,
     isSubPageDialogOpen, setIsSubPageDialogOpen,
@@ -50,6 +51,14 @@ const UserPages = () => {
             <p className="text-center text-muted-foreground">Please log in to manage your pages.</p>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6 flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }

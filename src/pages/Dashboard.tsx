@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,24 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from '@/components/ui/sonner';
 import { LinkIcon, Copy, Download, X, Plus, Bell, Eye, LogOut, Info } from 'lucide-react';
-import { useSessionContext } from '@/contexts/SessionContext';
+import { useSessions } from '@/hooks/useSessions';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from '@/hooks/useAuth';
 import { useSessionEntries } from '@/hooks/useSessionEntries';
 import SessionDetailView from '@/components/session/SessionDetailView';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
-  const { 
-    sessions, 
-    switchSubPage, 
-    exportSessionData, 
-    closeSession,
-    getMainPageById,
-    resetNewDataFlag 
-  } = useSessionContext();
+  const { sessions, closeSession, updateSession } = useSessions();
   const navigate = useNavigate();
   const [viewingSessionData, setViewingSessionData] = useState<{ 
     sessionId: string, 
@@ -37,6 +33,28 @@ const Dashboard = () => {
   const [detailViewSessionId, setDetailViewSessionId] = useState<string | null>(null);
 
   const { sessionData } = useSessionEntries(viewingSessionData?.sessionId);
+
+  // Get main pages for display
+  const { data: mainPages = [] } = useQuery({
+    queryKey: ['main_pages_for_sessions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('main_pages')
+        .select(`
+          *,
+          sub_pages (*)
+        `);
+      if (error) throw error;
+      return data.map(mp => ({
+        ...mp,
+        subPages: mp.sub_pages || []
+      }));
+    },
+  });
+
+  const getMainPageById = (mainPageId: string) => {
+    return mainPages.find(mp => mp.id === mainPageId);
+  };
   
   // Show notifications for new data
   useEffect(() => {
@@ -74,7 +92,7 @@ const Dashboard = () => {
     const mainPage = getMainPageById(session.main_page_id);
     const newSubPage = mainPage?.subPages?.find(sp => sp.id === newSubPageId);
     
-    switchSubPage(sessionId, newSubPageId);
+    updateSession(sessionId, { current_sub_page_id: newSubPageId });
     toast.success("Page Type Changed", {
       description: `Session page has been updated to ${newSubPage?.name || 'Unknown'}.`
     });
@@ -94,19 +112,20 @@ const Dashboard = () => {
       sessionId: sessionId,
       data: []
     });
-    resetNewDataFlag(sessionId);
+    // Reset new data flag
+    const session = sessions.find(s => s.id === sessionId);
+    if (session?.has_new_data) {
+      updateSession(sessionId, { has_new_data: false });
+    }
   };
 
   const openDetailView = (sessionId: string) => {
     setDetailViewSessionId(sessionId);
-    resetNewDataFlag(sessionId);
-  };
-  
-  const handleCopyFieldValue = (value: string) => {
-    navigator.clipboard.writeText(value);
-    toast.success("Value Copied", {
-      description: "Field value has been copied to clipboard."
-    });
+    // Reset new data flag
+    const session = sessions.find(s => s.id === sessionId);
+    if (session?.has_new_data) {
+      updateSession(sessionId, { has_new_data: false });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -214,12 +233,6 @@ const Dashboard = () => {
                         <CardContent className="pb-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <div className="text-sm font-medium">Data captured:</div>
-                              <div className="mt-1">
-                                {/* TODO: Displaying data entry count requires a more performant query. */}
-                              </div>
-                            </div>
-                            <div>
                               <div className="text-sm font-medium">Sub Page:</div>
                               <div className="mt-1">
                                 <Select 
@@ -264,14 +277,6 @@ const Dashboard = () => {
                             <Info className="h-4 w-4 mr-2" />
                             Details
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => exportSessionData(session.id)}
-                            disabled={session.data.length === 0}
-                          >
-                            <Download className="h-4 w-4 mr-2" /> Export
-                          </Button>
                         </CardFooter>
                       </Card>
                     );
@@ -288,7 +293,7 @@ const Dashboard = () => {
                 <h3 className="text-lg font-medium">Session Quick Guide</h3>
                 <p className="text-muted-foreground max-w-2xl">
                   Create a session, share the generated link, and collect data. You can change the sub-page at any time
-                  and the live session will update instantly. Export data when you're ready.
+                  and the live session will update instantly.
                 </p>
               </div>
               <Button variant="outline" className="shrink-0" onClick={() => navigate('/create-session')}>
