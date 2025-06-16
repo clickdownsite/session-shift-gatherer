@@ -109,10 +109,11 @@ export const useUserPages = () => {
     }
   };
 
-  const handleRemoveField = (field: string) => {
+  // Fixed: handleRemoveField now expects index number instead of field string
+  const handleRemoveField = (index: number) => {
     setSubPageForm(prev => ({
       ...prev,
-      fields: prev.fields.filter(f => f !== field)
+      fields: prev.fields.filter((_, i) => i !== index)
     }));
   };
 
@@ -157,11 +158,34 @@ export const useUserPages = () => {
     }
   };
 
-  const handleFileUpload = (content: string, type: 'html' | 'css' | 'javascript') => {
-    setSubPageForm(prev => ({
-      ...prev,
-      [type]: content
-    }));
+  // Fixed: handleFileUpload now expects ChangeEvent instead of (content, type)
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      const fileName = file.name.toLowerCase();
+      
+      let type: 'html' | 'css' | 'javascript';
+      if (fileName.endsWith('.html')) {
+        type = 'html';
+      } else if (fileName.endsWith('.css')) {
+        type = 'css';
+      } else if (fileName.endsWith('.js')) {
+        type = 'javascript';
+      } else {
+        toast.error('Please upload HTML, CSS, or JS files only');
+        return;
+      }
+
+      setSubPageForm(prev => ({
+        ...prev,
+        [type]: content
+      }));
+    };
+    reader.readAsText(file);
   };
 
   const handlePreview = (subPage: SubPage) => {
