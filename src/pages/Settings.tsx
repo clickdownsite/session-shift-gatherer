@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -7,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
+import ApiKeySettings from '@/components/ApiKeySettings';
 
 const Settings = () => {
   const handleSaveSettings = () => {
@@ -24,6 +24,8 @@ const Settings = () => {
       </div>
 
       <div className="grid gap-6">
+        <ApiKeySettings />
+
         <Card>
           <CardHeader>
             <CardTitle>General Settings</CardTitle>

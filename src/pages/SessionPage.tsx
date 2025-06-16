@@ -2,7 +2,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useSessionPageData } from '@/hooks/useSessionPageData';
-// import SessionLoading from '@/components/session-page/SessionLoading'; // REMOVED
+import SessionLoading from '@/components/session-page/SessionLoading';
 import SessionError from '@/components/session-page/SessionError';
 import SubPageContent from '@/components/session-page/SubPageContent';
 
@@ -27,9 +27,9 @@ const SessionPage = () => {
     subPageName: currentSubPage?.name
   });
 
-  // If loading, just show nothing (no skeleton/loading indicator)
+  // Show loading state
   if (loading) {
-    return null;
+    return <SessionLoading />;
   }
 
   if (error) {
@@ -47,7 +47,7 @@ const SessionPage = () => {
     console.log('No sub page found, showing error');
     return (
       <SessionError 
-        error="No page content found" 
+        error="No page content found for this session" 
         sessionId={sessionId} 
         onRetry={refetch}
       />
@@ -69,4 +69,3 @@ const SessionPage = () => {
 };
 
 export default SessionPage;
-

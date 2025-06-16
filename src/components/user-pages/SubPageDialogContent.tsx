@@ -1,35 +1,28 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import FileUpload from '@/components/FileUpload';
+import { X, Plus, Upload, Zap } from 'lucide-react';
+import { connectCodeWithAI } from '@/services/aiCodeConnection';
+import { toast } from '@/hooks/use-toast';
 
 interface SubPageDialogContentProps {
-  subPageForm: {
-    name: string;
-    description: string;
-    fields: string[];
-    html: string;
-    css: string;
-    javascript: string;
-  };
-  setSubPageForm: React.Dispatch<React.SetStateAction<any>>;
+  subPageForm: any;
+  setSubPageForm: (form: any) => void;
   fieldInput: string;
-  setFieldInput: React.Dispatch<React.SetStateAction<string>>;
+  setFieldInput: (value: string) => void;
   handleAddField: () => void;
-  handleRemoveField: (field: string) => void;
-  handleFileUpload: (content: string, type: 'html' | 'css' | 'javascript') => void;
-  handleSubmit: () => void;
+  handleRemoveField: (index: number) => void;
+  handleFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleSubmit: (e: React.FormEvent) => void;
   closeDialog: () => void;
   isEditing: boolean;
 }
 
-const SubPageDialogContent: React.FC<SubPageDialogContentProps> = ({
+const SubPageDialogContent = ({
   subPageForm,
   setSubPageForm,
   fieldInput,
@@ -39,147 +32,195 @@ const SubPageDialogContent: React.FC<SubPageDialogContentProps> = ({
   handleFileUpload,
   handleSubmit,
   closeDialog,
-  isEditing,
-}) => {
+  isEditing
+}: SubPageDialogContentProps) => {
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleConnectWithAI = async () => {
+    const apiKey = localStorage.getItem('gemini_api_key');
+    if (!apiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please set your Gemini API key in Settings first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!subPageForm.html.trim()) {
+      toast({
+        title: "HTML Required",
+        description: "Please add HTML content before connecting with AI.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const result = await connectCodeWithAI({
+        html: subPageForm.html,
+        css: subPageForm.css,
+        javascript: subPageForm.javascript,
+        fields: subPageForm.fields || []
+      });
+
+      if (result.success) {
+        setSubPageForm({
+          ...subPageForm,
+          html: result.html,
+          css: result.css,
+          javascript: result.javascript
+        });
+        toast({
+          title: "AI Connection Successful",
+          description: "Your code has been enhanced to capture form data automatically.",
+        });
+      } else {
+        throw new Error(result.error || 'AI connection failed');
+      }
+    } catch (error) {
+      toast({
+        title: "AI Connection Failed",
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: "destructive"
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          {isEditing ? 'Edit Sub Page' : 'Create New Sub Page'}
-        </DialogTitle>
+        <DialogTitle>{isEditing ? 'Edit Sub Page' : 'Create New Sub Page'}</DialogTitle>
       </DialogHeader>
-      <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="basic">Basic Info</TabsTrigger>
-          <TabsTrigger value="fields">Form Fields</TabsTrigger>
-          <TabsTrigger value="content">Content</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="basic" className="space-y-4">
+      
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid gap-4">
           <div>
-            <Label htmlFor="sub-name">Sub Page Name</Label>
+            <Label htmlFor="name">Page Name</Label>
             <Input
-              id="sub-name"
+              id="name"
               value={subPageForm.name}
-              onChange={(e) => setSubPageForm(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter sub page name"
+              onChange={(e) => setSubPageForm({ ...subPageForm, name: e.target.value })}
+              placeholder="Enter page name"
+              required
             />
           </div>
+          
           <div>
-            <Label htmlFor="sub-description">Description</Label>
+            <Label htmlFor="description">Description</Label>
             <Textarea
-              id="sub-description"
+              id="description"
               value={subPageForm.description}
-              onChange={(e) => setSubPageForm(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Enter sub page description"
+              onChange={(e) => setSubPageForm({ ...subPageForm, description: e.target.value })}
+              placeholder="Enter page description"
+              rows={2}
             />
           </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent value="fields" className="space-y-4">
-          <div>
-            <Label>Form Fields</Label>
-            <div className="flex gap-2 mt-2">
+        <div>
+          <Label>Form Fields</Label>
+          <div className="space-y-2">
+            {subPageForm.fields?.map((field: string, index: number) => (
+              <div key={index} className="flex items-center gap-2">
+                <Input value={field} readOnly />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleRemoveField(index)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <div className="flex gap-2">
               <Input
                 value={fieldInput}
                 onChange={(e) => setFieldInput(e.target.value)}
-                placeholder="Enter field name (e.g., email, password)"
-                onKeyPress={(e) => e.key === 'Enter' && handleAddField()}
+                placeholder="Add a field name"
               />
-              <Button onClick={handleAddField}>Add Field</Button>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-4">
-              {subPageForm.fields.map((field) => (
-                <Badge key={field} variant="secondary" className="cursor-pointer">
-                  {field}
-                  <button
-                    onClick={() => handleRemoveField(field)}
-                    className="ml-2 hover:text-destructive"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              ))}
+              <Button type="button" onClick={handleAddField} variant="outline">
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent value="content" className="space-y-4">
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <Label htmlFor="html">HTML Content</Label>
-                <FileUpload
-                  onFileUpload={(content) => handleFileUpload(content, 'html')}
-                  acceptedTypes={['html']}
-                  className="text-xs"
-                />
-              </div>
-              <Textarea
-                id="html"
-                value={subPageForm.html}
-                onChange={(e) => setSubPageForm(prev => ({ ...prev, html: e.target.value }))}
-                placeholder="Enter HTML content"
-                className="font-mono text-sm min-h-[200px]"
-              />
+        <div className="space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label htmlFor="html">HTML Content</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleConnectWithAI}
+                disabled={isConnecting}
+                className="flex items-center gap-2"
+              >
+                <Zap className="h-4 w-4" />
+                {isConnecting ? 'Connecting...' : 'Connect with AI'}
+              </Button>
             </div>
-            
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <Label htmlFor="css">CSS Styles</Label>
-                <FileUpload
-                  onFileUpload={(content) => handleFileUpload(content, 'css')}
-                  acceptedTypes={['css']}
-                  className="text-xs"
-                />
-              </div>
-              <Textarea
-                id="css"
-                value={subPageForm.css}
-                onChange={(e) => setSubPageForm(prev => ({ ...prev, css: e.target.value }))}
-                placeholder="Enter CSS styles"
-                className="font-mono text-sm min-h-[150px]"
-              />
-            </div>
-            
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <Label htmlFor="javascript">JavaScript</Label>
-                <FileUpload
-                  onFileUpload={(content) => handleFileUpload(content, 'javascript')}
-                  acceptedTypes={['javascript']}
-                  className="text-xs"
-                />
-              </div>
-              <Textarea
-                id="javascript"
-                value={subPageForm.javascript}
-                onChange={(e) => setSubPageForm(prev => ({ ...prev, javascript: e.target.value }))}
-                placeholder="Enter JavaScript code"
-                className="font-mono text-sm min-h-[150px]"
-              />
-            </div>
+            <Textarea
+              id="html"
+              value={subPageForm.html}
+              onChange={(e) => setSubPageForm({ ...subPageForm, html: e.target.value })}
+              placeholder="Enter your HTML code here"
+              rows={8}
+              className="font-mono text-sm"
+            />
           </div>
-        </TabsContent>
 
-        <TabsContent value="preview" className="space-y-4">
-          <div className="border rounded-lg p-4 min-h-[400px] bg-white">
-            <style dangerouslySetInnerHTML={{ __html: subPageForm.css }} />
-            <div dangerouslySetInnerHTML={{ __html: subPageForm.html }} />
-            <script dangerouslySetInnerHTML={{ __html: subPageForm.javascript }} />
+          <div>
+            <Label htmlFor="css">CSS Styles</Label>
+            <Textarea
+              id="css"
+              value={subPageForm.css}
+              onChange={(e) => setSubPageForm({ ...subPageForm, css: e.target.value })}
+              placeholder="Enter your CSS code here"
+              rows={6}
+              className="font-mono text-sm"
+            />
           </div>
-        </TabsContent>
-      </Tabs>
-      
-      <div className="flex gap-2 mt-6">
-        <Button onClick={handleSubmit}>
-          {isEditing ? 'Update Sub Page' : 'Create Sub Page'}
-        </Button>
-        <Button variant="outline" onClick={closeDialog}>
-          Cancel
-        </Button>
-      </div>
+
+          <div>
+            <Label htmlFor="javascript">JavaScript</Label>
+            <Textarea
+              id="javascript"
+              value={subPageForm.javascript}
+              onChange={(e) => setSubPageForm({ ...subPageForm, javascript: e.target.value })}
+              placeholder="Enter your JavaScript code here"
+              rows={6}
+              className="font-mono text-sm"
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="file-upload">Upload HTML File</Label>
+          <Input
+            id="file-upload"
+            type="file"
+            accept=".html,.htm"
+            onChange={handleFileUpload}
+            className="mt-1"
+          />
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button type="button" variant="outline" onClick={closeDialog}>
+            Cancel
+          </Button>
+          <Button type="submit">
+            {isEditing ? 'Update' : 'Create'} Sub Page
+          </Button>
+        </div>
+      </form>
     </>
   );
 };
