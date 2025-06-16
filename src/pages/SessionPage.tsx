@@ -21,7 +21,7 @@ const SessionPage = () => {
   console.log('SessionPage render state:', { 
     sessionId, 
     loading, 
-    error, 
+    error: !!error, 
     hasSubPage: !!currentSubPage,
     subPageId: currentSubPage?.id,
     subPageName: currentSubPage?.name
@@ -29,11 +29,13 @@ const SessionPage = () => {
 
   // Show loading state
   if (loading) {
+    console.log('SessionPage: Showing loading state');
     return <SessionLoading />;
   }
 
+  // Show error state
   if (error) {
-    console.log('Showing error state:', error);
+    console.log('SessionPage: Showing error state:', error);
     return (
       <SessionError 
         error={error} 
@@ -43,8 +45,9 @@ const SessionPage = () => {
     );
   }
 
+  // Show error if no sub page found
   if (!currentSubPage) {
-    console.log('No sub page found, showing error');
+    console.log('SessionPage: No sub page found, showing error');
     return (
       <SessionError 
         error="No page content found for this session" 
@@ -54,15 +57,16 @@ const SessionPage = () => {
     );
   }
 
-  console.log('Rendering SubPageContent with:', {
+  console.log('SessionPage: Rendering SubPageContent with:', {
     sessionId,
     subPageId: currentSubPage.id,
     hasHtml: !!currentSubPage.html,
-    hasCss: !!currentSubPage.css
+    hasCss: !!currentSubPage.css,
+    hasJavascript: !!currentSubPage.javascript
   });
 
   return (
-    <div className="min-h-screen w-full">
+    <div className="min-h-screen w-full bg-background">
       <SubPageContent sessionId={sessionId} currentSubPage={currentSubPage} />
     </div>
   );

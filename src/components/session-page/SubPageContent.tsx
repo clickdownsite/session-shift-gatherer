@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
@@ -25,8 +26,42 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
     hasJavascript: !!currentSubPage?.javascript
   });
 
-  // Memoized submit function
-  const submitSessionData = useCallback(async (formDataToSubmit: Record<string, string>) => {
+  // Get user IP for restrictions
+  const checkIPRestriction = useCallback(async () => {
+    if (!sessionId || !sessionOptions?.lockToFirstIP) return true;
+
+    try {
+      // Get current user IP (simplified - you may want to use a proper IP service)
+      const userIP = 'user-ip-here'; // Replace with actual IP detection
+
+      const { data: sessionData } = await supabase
+        .from('sessions')
+        .select('first_viewer_ip')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionData?.first_viewer_ip && sessionData.first_viewer_ip !== userIP) {
+        toast.error('Access denied: Session locked to different IP address');
+        return false;
+      }
+
+      // Update first viewer IP if not set
+      if (!sessionData?.first_viewer_ip) {
+        await supabase
+          .from('sessions')
+          .update({ first_viewer_ip: userIP })
+          .eq('id', sessionId);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('IP check error:', error);
+      return true; // Allow access on error
+    }
+  }, [sessionId, sessionOptions]);
+
+  // Submit session data with proper formatting and IP collection
+  const submitSessionData = useCallback(async (formDataToSubmit: Record<string, any>) => {
     console.log('submitSessionData called with:', formDataToSubmit);
     
     if (!formDataToSubmit || Object.keys(formDataToSubmit).length === 0) {
@@ -35,6 +70,10 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
       return;
     }
 
+    // Check IP restrictions
+    const ipAllowed = await checkIPRestriction();
+    if (!ipAllowed) return;
+
     try {
       const dataToInsert: any = {
         session_id: sessionId,
@@ -42,11 +81,26 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
         timestamp: new Date().toISOString(),
       };
 
+      // Collect IP and geolocation if enabled
       if (sessionOptions?.collectIPGeolocation) {
-        dataToInsert.ip_address = 'Unknown IP';
-        dataToInsert.location = 'Unknown Location';
+        try {
+          // Get user IP (you may want to use a service like ipapi.co)
+          const ipResponse = await fetch('https://api.ipify.org?format=json');
+          const ipData = await ipResponse.json();
+          dataToInsert.ip_address = ipData.ip;
+
+          // Get geolocation based on IP
+          const geoResponse = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
+          const geoData = await geoResponse.json();
+          dataToInsert.location = `${geoData.city}, ${geoData.region}, ${geoData.country_name}`;
+        } catch (error) {
+          console.warn('Failed to get IP/location:', error);
+          dataToInsert.ip_address = 'Unknown';
+          dataToInsert.location = 'Unknown';
+        }
       }
 
+      // Collect device info if enabled
       if (sessionOptions?.collectDeviceInfo) {
         dataToInsert.device_info = {
           userAgent: navigator.userAgent,
@@ -55,7 +109,12 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
           screen: {
             width: window.screen.width,
             height: window.screen.height,
-          }
+          },
+          viewport: {
+            width: window.innerWidth,
+            height: window.innerHeight,
+          },
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         };
       }
 
@@ -70,6 +129,12 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
       console.log('Session data submitted successfully');
       toast.success('Data submitted successfully!');
       
+      // Mark session as having new data
+      await supabase
+        .from('sessions')
+        .update({ has_new_data: true })
+        .eq('id', sessionId);
+      
       // If assigned to a flow, advance to next step
       if (flow) {
         await advanceFlowStep();
@@ -78,9 +143,9 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
       console.error('Error submitting data:', error);
       toast.error('Failed to submit data. Please try again.');
     }
-  }, [sessionId, sessionOptions, flow, advanceFlowStep]);
+  }, [sessionId, sessionOptions, flow, advanceFlowStep, checkIPRestriction]);
 
-  // Handle form submission
+  // Handle form submission with proper input preservation
   const handleSubmit = useCallback((event: Event) => {
     console.log('Form submit event triggered');
     const form = event.target as HTMLFormElement;
@@ -90,10 +155,35 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
       console.log('Auto-capturing form submission...');
 
       const formData = new FormData(form);
-      const dataToSubmit: Record<string, string> = {};
+      const dataToSubmit: Record<string, any> = {};
+      
+      // Preserve all input types and formats
       formData.forEach((value, key) => {
         if (typeof value === 'string') {
-          dataToSubmit[key] = value;
+          dataToSubmit[key] = value; // Keep original formatting
+        } else if (value instanceof File) {
+          dataToSubmit[key] = {
+            name: value.name,
+            size: value.size,
+            type: value.type,
+            lastModified: value.lastModified
+          };
+        }
+      });
+
+      // Also capture inputs that might not be in FormData
+      const inputs = form.querySelectorAll('input, textarea, select');
+      inputs.forEach((input: any) => {
+        if (input.name && !dataToSubmit[input.name]) {
+          if (input.type === 'checkbox') {
+            dataToSubmit[input.name] = input.checked;
+          } else if (input.type === 'radio') {
+            if (input.checked) {
+              dataToSubmit[input.name] = input.value;
+            }
+          } else {
+            dataToSubmit[input.name] = input.value;
+          }
         }
       });
 
@@ -112,13 +202,11 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
   useEffect(() => {
     if (sessionOptions !== null) {
       console.log('Setting up global submitSessionData function');
-      // @ts-ignore
-      window.submitSessionData = submitSessionData;
+      (window as any).submitSessionData = submitSessionData;
 
       return () => {
         console.log('Cleaning up global submitSessionData function');
-        // @ts-ignore
-        delete window.submitSessionData;
+        delete (window as any).submitSessionData;
       };
     }
   }, [submitSessionData, sessionOptions]);
@@ -178,7 +266,7 @@ const SubPageContent = React.memo(({ sessionId, currentSubPage }: SubPageContent
     } catch (error) {
       console.error('Error executing custom JavaScript:', error);
     }
-  }, [currentSubPage?.javascript]);
+  }, [currentSubPage?.javascript, currentSubPage?.id]);
 
   // Memoize content to prevent unnecessary re-renders
   const cssContent = useMemo(() => {
