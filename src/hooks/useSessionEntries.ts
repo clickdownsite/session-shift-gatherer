@@ -34,7 +34,23 @@ export const useSessionEntries = (sessionId: string | undefined) => {
           .order('timestamp', { ascending: false });
 
         if (error) throw error;
-        setSessionData(data || []);
+        
+        // Transform the data to match our SessionEntry interface
+        const transformedData: SessionEntry[] = (data || []).map(entry => ({
+          id: entry.id,
+          session_id: entry.session_id,
+          form_data: typeof entry.form_data === 'object' && entry.form_data !== null 
+            ? entry.form_data as Record<string, any>
+            : {},
+          timestamp: entry.timestamp,
+          ip_address: entry.ip_address || '',
+          location: entry.location || '',
+          device_info: typeof entry.device_info === 'object' && entry.device_info !== null 
+            ? entry.device_info as Record<string, any>
+            : undefined
+        }));
+        
+        setSessionData(transformedData);
       } catch (err) {
         console.error('Error fetching session entries:', err);
         setError(err instanceof Error ? err.message : 'Failed to load session data');
