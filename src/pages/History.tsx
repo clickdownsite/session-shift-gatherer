@@ -8,7 +8,7 @@ import { useSessionContext } from '@/contexts/SessionContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/sonner';
-import { useSessionData } from '@/hooks/useSupabaseSession';
+import { useSessionEntries } from '@/hooks/useSessionEntries';
 import { useHistoricalSessions } from '@/hooks/useSessions';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -18,7 +18,7 @@ const History = () => {
     sessionId: string
   } | null>(null);
   
-  const { sessionData } = useSessionData(viewingSessionData?.sessionId);
+  const { sessionData } = useSessionEntries(viewingSessionData?.sessionId);
   const { data: historicalSessions = [], isLoading } = useHistoricalSessions();
   
   const formatDate = (dateString: string) => {
@@ -133,14 +133,14 @@ const History = () => {
           <DialogHeader>
             <DialogTitle>Session Data: {viewingSessionData?.sessionId}</DialogTitle>
           </DialogHeader>
-          {sessionData.length === 0 ? (
+          {(!sessionData || sessionData.length === 0) ? (
             <div className="text-center py-8">
               <p>No data has been captured for this session yet.</p>
             </div>
           ) : (
             <div className="space-y-6">
               {sessionData.map((entry, index) => (
-                <Card key={index} className="border">
+                <Card key={entry.id || index} className="border">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-center">
                       <div className="text-sm text-muted-foreground">

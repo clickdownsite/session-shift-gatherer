@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Copy, ExternalLink, Plus, Trash2 } from 'lucide-react';
-import { useSessionData } from '@/hooks/useSupabaseSession';
+import { useSessionEntries } from '@/hooks/useSessionEntries';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -17,7 +17,7 @@ interface SessionDetailViewProps {
 }
 
 const SessionDetailView = ({ sessionId, onClose }: SessionDetailViewProps) => {
-  const { sessionData } = useSessionData(sessionId);
+  const { sessionData } = useSessionEntries(sessionId);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -60,16 +60,6 @@ const SessionDetailView = ({ sessionId, onClose }: SessionDetailViewProps) => {
       });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteEntry = async (entryIndex: number) => {
-    if (sessionData.length > entryIndex) {
-      // In a real app, you'd need the entry ID to delete
-      toast({
-        title: "Delete functionality",
-        description: "Delete functionality would be implemented with proper entry IDs.",
-      });
     }
   };
 
@@ -206,7 +196,7 @@ const SessionDetailView = ({ sessionId, onClose }: SessionDetailViewProps) => {
           ) : (
             <div className="space-y-4">
               {sessionData.map((entry, index) => (
-                <Card key={index} className="border-l-4 border-l-primary">
+                <Card key={entry.id} className="border-l-4 border-l-primary">
                   <CardContent className="pt-4">
                     <div className="flex justify-between items-start mb-3">
                       <div>
@@ -215,13 +205,6 @@ const SessionDetailView = ({ sessionId, onClose }: SessionDetailViewProps) => {
                           {new Date(entry.timestamp).toLocaleString()}
                         </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteEntry(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
                     <Separator className="mb-3" />
                     <div className="grid gap-2">

@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from '@/hooks/useAuth';
-import { useSessionData } from '@/hooks/useSupabaseSession';
+import { useSessionEntries } from '@/hooks/useSessionEntries';
 import SessionDetailView from '@/components/session/SessionDetailView';
 
 const Dashboard = () => {
@@ -36,7 +36,7 @@ const Dashboard = () => {
   } | null>(null);
   const [detailViewSessionId, setDetailViewSessionId] = useState<string | null>(null);
 
-  const { sessionData } = useSessionData(viewingSessionData?.sessionId);
+  const { sessionData } = useSessionEntries(viewingSessionData?.sessionId);
   
   // Show notifications for new data
   useEffect(() => {

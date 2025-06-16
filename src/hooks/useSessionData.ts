@@ -94,7 +94,12 @@ export const useSessionData = (sessionId: string | undefined) => {
       }
 
       setData({
-        session: sessionData,
+        session: {
+          ...sessionData,
+          session_options: typeof sessionData.session_options === 'string' 
+            ? JSON.parse(sessionData.session_options) 
+            : (sessionData.session_options || {})
+        },
         subPage: subPageData,
       });
 
