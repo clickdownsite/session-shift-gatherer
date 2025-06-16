@@ -39,10 +39,11 @@ export const useSessionData = (sessionId: string | undefined) => {
     }
 
     try {
+      console.log('Fetching session data for:', sessionId);
       setLoading(true);
       setError(null);
 
-      // Single query to get all needed data
+      // Get session data
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .select(`
@@ -58,42 +59,61 @@ export const useSessionData = (sessionId: string | undefined) => {
         .eq('id', sessionId)
         .single();
 
-      if (sessionError || !sessionData) {
-        throw new Error(sessionError?.message || 'Session not found');
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error(sessionError.message || 'Session not found');
+      }
+
+      if (!sessionData) {
+        throw new Error('Session not found');
       }
 
       if (!sessionData.active) {
         throw new Error('Session is no longer active');
       }
 
-      // Determine which sub page to show
+      console.log('Session data loaded:', sessionData);
+
+      // Determine target sub page ID
       let targetSubPageId = sessionData.current_sub_page_id;
 
-      // Check if we have a flow and should use flow step
+      // Check flow logic
+      let flowData = null;
       if (sessionData.flow_id && typeof sessionData.current_flow_step === 'number') {
-        const { data: flowData } = await supabase
+        console.log('Loading flow data for:', sessionData.flow_id);
+        const { data: fData, error: fError } = await supabase
           .from('page_flows')
           .select('id, steps')
           .eq('id', sessionData.flow_id)
           .single();
 
-        if (flowData?.steps?.[sessionData.current_flow_step]?.sub_page_id) {
-          targetSubPageId = flowData.steps[sessionData.current_flow_step].sub_page_id;
+        if (!fError && fData?.steps?.[sessionData.current_flow_step]?.sub_page_id) {
+          flowData = fData;
+          targetSubPageId = fData.steps[sessionData.current_flow_step].sub_page_id;
+          console.log('Using flow step sub page:', targetSubPageId);
         }
       }
 
-      // Get the sub page content
+      // Get sub page content
+      console.log('Loading sub page:', targetSubPageId);
       const { data: subPageData, error: subPageError } = await supabase
         .from('sub_pages')
         .select('id, name, html, css, javascript')
         .eq('id', targetSubPageId)
         .single();
 
-      if (subPageError || !subPageData) {
+      if (subPageError) {
+        console.error('Sub page error:', subPageError);
         throw new Error('Page content not found');
       }
 
-      setData({
+      if (!subPageData) {
+        throw new Error('Page content not found');
+      }
+
+      console.log('Sub page loaded:', subPageData.id, subPageData.name);
+
+      const finalData: SessionPageData = {
         session: {
           ...sessionData,
           session_options: typeof sessionData.session_options === 'string' 
@@ -101,7 +121,11 @@ export const useSessionData = (sessionId: string | undefined) => {
             : (sessionData.session_options || {})
         },
         subPage: subPageData,
-      });
+        flow: flowData
+      };
+
+      setData(finalData);
+      console.log('Session data fetch complete');
 
     } catch (err) {
       console.error('Error fetching session data:', err);
@@ -115,9 +139,11 @@ export const useSessionData = (sessionId: string | undefined) => {
     fetchData();
   }, [fetchData]);
 
-  // Real-time updates
+  // Real-time updates - simplified
   useEffect(() => {
     if (!sessionId) return;
+
+    console.log('Setting up real-time subscription for session:', sessionId);
 
     const channel = supabase
       .channel(`session_${sessionId}`)
@@ -126,12 +152,19 @@ export const useSessionData = (sessionId: string | undefined) => {
         schema: 'public',
         table: 'sessions',
         filter: `id=eq.${sessionId}`
-      }, () => {
-        fetchData();
+      }, (payload) => {
+        console.log('Session updated via real-time:', payload);
+        // Small delay to ensure database consistency
+        setTimeout(() => {
+          fetchData();
+        }, 100);
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
   }, [sessionId, fetchData]);

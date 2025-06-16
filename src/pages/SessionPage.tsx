@@ -6,6 +6,8 @@ import SessionContent from '@/components/session-page/SessionContent';
 const SessionPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
 
+  console.log('SessionPage render with sessionId:', sessionId);
+
   if (!sessionId) {
     return (
       <div className="flex items-center justify-center min-h-screen">

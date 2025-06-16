@@ -4,15 +4,19 @@ import { toast } from '@/components/ui/sonner';
 import { useSessionData } from '@/hooks/useSessionData';
 import { checkIPRestriction } from '@/services/ipService';
 import { captureFormData, extractFormData } from '@/services/formDataService';
+import SessionLoading from './SessionLoading';
+import SessionError from './SessionError';
 
 interface SessionContentProps {
   sessionId: string;
 }
 
 const SessionContent = ({ sessionId }: SessionContentProps) => {
-  const { data, loading, error } = useSessionData(sessionId);
+  const { data, loading, error, refetch } = useSessionData(sessionId);
   const containerRef = useRef<HTMLDivElement>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
+
+  console.log('SessionContent render:', { sessionId, loading, error, hasData: !!data });
 
   // Handle form submissions
   const handleFormSubmit = useCallback(async (event: Event) => {
@@ -61,19 +65,28 @@ const SessionContent = ({ sessionId }: SessionContentProps) => {
 
   // Handle JavaScript injection
   useEffect(() => {
-    if (!data?.subPage.javascript) return;
-
-    // Clean up previous script
-    if (scriptRef.current) {
-      try {
-        document.head.removeChild(scriptRef.current);
-      } catch (e) {
-        console.warn('Previous script already removed');
+    if (!data?.subPage.javascript) {
+      // Clean up any existing script
+      if (scriptRef.current) {
+        try {
+          document.head.removeChild(scriptRef.current);
+        } catch (e) {
+          console.warn('Previous script cleanup failed');
+        }
+        scriptRef.current = null;
       }
-      scriptRef.current = null;
+      return;
     }
 
+    console.log('Injecting JavaScript for sub page:', data.subPage.id);
+
     try {
+      // Clean up previous script
+      if (scriptRef.current) {
+        document.head.removeChild(scriptRef.current);
+        scriptRef.current = null;
+      }
+
       const script = document.createElement('script');
       script.textContent = data.subPage.javascript;
       document.head.appendChild(script);
@@ -106,34 +119,33 @@ const SessionContent = ({ sessionId }: SessionContentProps) => {
     } catch (error) {
       console.error('JavaScript injection failed:', error);
     }
-  }, [data?.subPage.javascript, sessionId]);
+  }, [data?.subPage.javascript, data?.subPage.id, sessionId]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <SessionLoading />;
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-red-600 mb-2">Session Error</h2>
-          <p className="text-gray-600">{error}</p>
-        </div>
-      </div>
+      <SessionError 
+        error={error} 
+        sessionId={sessionId} 
+        onRetry={refetch}
+      />
     );
   }
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-500">No session data available</p>
-      </div>
+      <SessionError 
+        error="No session data available" 
+        sessionId={sessionId}
+        onRetry={refetch}
+      />
     );
   }
+
+  console.log('Rendering session content for sub page:', data.subPage.id);
 
   return (
     <div className="w-full min-h-screen">
