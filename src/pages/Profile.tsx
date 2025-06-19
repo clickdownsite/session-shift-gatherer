@@ -63,24 +63,11 @@ const Profile = () => {
           email: user?.email || '',
           avatar_url: profile.avatar_url || '',
         });
-
-        // Parse user settings from profile metadata if available
-        if (profile.metadata && typeof profile.metadata === 'object') {
-          const profileMetadata = profile.metadata as any;
-          setSettings({
-            email_notifications: profileMetadata.email_notifications ?? true,
-            data_collection_default: profileMetadata.data_collection_default ?? true,
-            ip_collection_default: profileMetadata.ip_collection_default ?? true,
-            session_timeout: profileMetadata.session_timeout ?? 24,
-            auto_close_sessions: profileMetadata.auto_close_sessions ?? false,
-          });
-        }
       } else {
         // Create profile if it doesn't exist
         await supabase.from('profiles').insert({
           id: user?.id,
           full_name: '',
-          email: user?.email,
           updated_at: new Date().toISOString(),
         });
         
@@ -89,6 +76,23 @@ const Profile = () => {
           email: user?.email || '',
           avatar_url: '',
         });
+      }
+
+      // Load user settings from localStorage as fallback
+      const savedSettings = localStorage.getItem(`user_settings_${user?.id}`);
+      if (savedSettings) {
+        try {
+          const parsedSettings = JSON.parse(savedSettings);
+          setSettings({
+            email_notifications: parsedSettings.email_notifications ?? true,
+            data_collection_default: parsedSettings.data_collection_default ?? true,
+            ip_collection_default: parsedSettings.ip_collection_default ?? true,
+            session_timeout: parsedSettings.session_timeout ?? 24,
+            auto_close_sessions: parsedSettings.auto_close_sessions ?? false,
+          });
+        } catch (e) {
+          console.error('Error parsing saved settings:', e);
+        }
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -102,18 +106,20 @@ const Profile = () => {
     try {
       setSaving(true);
       
-      // Update profile with settings stored in metadata
+      // Update profile
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: user?.id,
           full_name: userProfile.full_name,
           avatar_url: userProfile.avatar_url,
-          metadata: settings,
           updated_at: new Date().toISOString(),
         });
 
       if (profileError) throw profileError;
+
+      // Save settings to localStorage
+      localStorage.setItem(`user_settings_${user?.id}`, JSON.stringify(settings));
 
       toast.success('Profile updated successfully');
     } catch (error) {
