@@ -10,6 +10,7 @@ type CreateSessionVariables = {
   subPageId: string;
   sessionOptions?: Record<string, any>;
   pageName?: string;
+  flowId?: string;
 };
 
 export const useSessions = () => {
@@ -33,25 +34,38 @@ export const useSessions = () => {
   });
 
   const createSessionMutation = useMutation<Session, Error, CreateSessionVariables>({
-    mutationFn: async ({ mainPageId, subPageId, sessionOptions }) => {
+    mutationFn: async ({ mainPageId, subPageId, sessionOptions, flowId }) => {
       if (!user) throw new Error('User not authenticated');
       
       const sessionId = Math.random().toString(36).substring(2, 8);
+      const sessionData: any = {
+        id: sessionId,
+        user_id: user.id,
+        main_page_id: mainPageId,
+        current_sub_page_id: subPageId,
+        active: true,
+        has_new_data: false,
+        session_options: sessionOptions || {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Add flow configuration if provided
+      if (flowId && flowId !== 'manual') {
+        sessionData.flow_id = flowId;
+        sessionData.current_flow_step = 0;
+      }
+
       const { data, error } = await supabase
         .from('sessions')
-        .insert({
-          id: sessionId,
-          user_id: user.id,
-          main_page_id: mainPageId,
-          current_sub_page_id: subPageId,
-          active: true,
-          has_new_data: false,
-          session_options: sessionOptions || {},
-        })
+        .insert(sessionData)
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Session creation error:', error);
+        throw error;
+      }
       return data as Session;
     },
     onSuccess: () => {
@@ -59,6 +73,7 @@ export const useSessions = () => {
       toast.success('Session created successfully!');
     },
     onError: (error) => {
+      console.error('Session creation failed:', error);
       toast.error("Failed to create session", {
         description: error.message,
       });
@@ -69,7 +84,10 @@ export const useSessions = () => {
     mutationFn: async ({ sessionId, updates }: { sessionId: string; updates: Partial<Session> }) => {
       const { data, error } = await supabase
         .from('sessions')
-        .update(updates)
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', sessionId)
         .select()
         .single();

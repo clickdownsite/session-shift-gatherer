@@ -1,238 +1,339 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Loader2, User, Settings, Bell, Shield } from 'lucide-react';
+
+interface UserSettings {
+  email_notifications: boolean;
+  data_collection_default: boolean;
+  ip_collection_default: boolean;
+  session_timeout: number;
+  auto_close_sessions: boolean;
+}
 
 const Profile = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
-  const [profile, setProfile] = useState({
+  const [saving, setSaving] = useState(false);
+  const [userProfile, setUserProfile] = useState({
     full_name: '',
     email: '',
+    avatar_url: '',
   });
-  const [passwords, setPasswords] = useState({
-    current: '',
-    new: '',
-    confirm: ''
+  const [settings, setSettings] = useState<UserSettings>({
+    email_notifications: true,
+    data_collection_default: true,
+    ip_collection_default: true,
+    session_timeout: 24,
+    auto_close_sessions: false,
   });
 
   useEffect(() => {
     if (user) {
-      setProfile({
-        full_name: user.user_metadata?.full_name || '',
-        email: user.email || ''
-      });
-      setLoading(false);
+      loadUserProfile();
     }
   }, [user]);
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUpdating(true);
-
+  const loadUserProfile = async () => {
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: { full_name: profile.full_name }
-      });
+      setLoading(true);
+      
+      // Get user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
 
-      if (error) throw error;
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
 
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been updated successfully.",
-      });
+      if (profile) {
+        setUserProfile({
+          full_name: profile.full_name || '',
+          email: user?.email || '',
+          avatar_url: profile.avatar_url || '',
+        });
+      } else {
+        // Create profile if it doesn't exist
+        await supabase.from('profiles').insert({
+          id: user?.id,
+          full_name: '',
+          email: user?.email,
+          updated_at: new Date().toISOString(),
+        });
+        
+        setUserProfile({
+          full_name: '',
+          email: user?.email || '',
+          avatar_url: '',
+        });
+      }
+
+      // Get user settings
+      const { data: userSettings, error: settingsError } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (settingsError && settingsError.code !== 'PGRST116') {
+        throw settingsError;
+      }
+
+      if (userSettings) {
+        setSettings({
+          email_notifications: userSettings.email_notifications ?? true,
+          data_collection_default: userSettings.data_collection_default ?? true,
+          ip_collection_default: userSettings.ip_collection_default ?? true,
+          session_timeout: userSettings.session_timeout ?? 24,
+          auto_close_sessions: userSettings.auto_close_sessions ?? false,
+        });
+      }
     } catch (error) {
-      toast({
-        title: "Update Failed",
-        description: error instanceof Error ? error.message : "Failed to update profile",
-        variant: "destructive"
-      });
+      console.error('Error loading profile:', error);
+      toast.error('Failed to load profile data');
     } finally {
-      setUpdating(false);
+      setLoading(false);
     }
   };
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (passwords.new !== passwords.confirm) {
-      toast({
-        title: "Password Mismatch",
-        description: "New passwords do not match.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (passwords.new.length < 6) {
-      toast({
-        title: "Password Too Short",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setUpdating(true);
-
+  const saveProfile = async () => {
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: passwords.new
-      });
+      setSaving(true);
+      
+      // Update profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user?.id,
+          full_name: userProfile.full_name,
+          avatar_url: userProfile.avatar_url,
+          updated_at: new Date().toISOString(),
+        });
 
-      if (error) throw error;
+      if (profileError) throw profileError;
 
-      setPasswords({ current: '', new: '', confirm: '' });
-      toast({
-        title: "Password Updated",
-        description: "Your password has been updated successfully.",
-      });
+      // Update settings
+      const { error: settingsError } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user?.id,
+          ...settings,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (settingsError) throw settingsError;
+
+      toast.success('Profile updated successfully');
     } catch (error) {
-      toast({
-        title: "Update Failed",
-        description: error instanceof Error ? error.message : "Failed to update password",
-        variant: "destructive"
-      });
+      console.error('Error saving profile:', error);
+      toast.error('Failed to save profile');
     } finally {
-      setUpdating(false);
+      setSaving(false);
     }
   };
+
+  const updateProfile = (field: string, value: string) => {
+    setUserProfile(prev => ({ ...prev, [field]: value }));
+  };
+
+  const updateSettings = (field: keyof UserSettings, value: boolean | number) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+  };
+
+  if (!user) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">Please log in to view your profile.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
-      <div className="container mx-auto max-w-4xl animate-fade-in flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="container mx-auto p-6 flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto max-w-4xl animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Profile</h1>
-        <p className="text-gray-500">Manage your account information</p>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Profile Settings</h1>
+        <Button onClick={saveProfile} disabled={saving}>
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Save Changes
+        </Button>
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Profile Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-            <CardDescription>Update your personal details</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Profile Information
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input 
-                    id="name" 
-                    value={profile.full_name}
-                    onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                    placeholder="Enter your full name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    value={profile.email}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Email cannot be changed. Contact support if needed.
-                  </p>
-                </div>
-              </div>
-              <div>
-                <Button type="submit" disabled={updating}>
-                  {updating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Update Profile
-                </Button>
-              </div>
-            </form>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                value={userProfile.email}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Email cannot be changed here. Contact support if needed.
+              </p>
+            </div>
+            
+            <div>
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                value={userProfile.full_name}
+                onChange={(e) => updateProfile('full_name', e.target.value)}
+                placeholder="Enter your full name"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="avatarUrl">Avatar URL</Label>
+              <Input
+                id="avatarUrl"
+                value={userProfile.avatar_url}
+                onChange={(e) => updateProfile('avatar_url', e.target.value)}
+                placeholder="https://example.com/avatar.jpg"
+              />
+            </div>
           </CardContent>
         </Card>
 
+        {/* Notification Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>Change Password</CardTitle>
-            <CardDescription>Update your password</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Notification Settings
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleUpdatePassword} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <Input 
-                  id="new-password" 
-                  type="password"
-                  value={passwords.new}
-                  onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
-                  placeholder="Enter new password"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm New Password</Label>
-                <Input 
-                  id="confirm-password" 
-                  type="password"
-                  value={passwords.confirm}
-                  onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-                  placeholder="Confirm new password"
-                />
-              </div>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
               <div>
-                <Button type="submit" disabled={updating}>
-                  {updating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Update Password
-                </Button>
+                <Label>Email Notifications</Label>
+                <p className="text-sm text-muted-foreground">
+                  Receive email updates about your sessions
+                </p>
               </div>
-            </form>
+              <Switch
+                checked={settings.email_notifications}
+                onCheckedChange={(checked) => updateSettings('email_notifications', checked)}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Auto-close Sessions</Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically close inactive sessions
+                </p>
+              </div>
+              <Switch
+                checked={settings.auto_close_sessions}
+                onCheckedChange={(checked) => updateSettings('auto_close_sessions', checked)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="sessionTimeout">Session Timeout (hours)</Label>
+              <Input
+                id="sessionTimeout"
+                type="number"
+                min="1"
+                max="168"
+                value={settings.session_timeout}
+                onChange={(e) => updateSettings('session_timeout', parseInt(e.target.value) || 24)}
+              />
+            </div>
           </CardContent>
         </Card>
 
+        {/* Default Collection Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>Account Settings</CardTitle>
-            <CardDescription>Manage your account preferences</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Default Collection Settings
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex justify-between items-center">
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-medium">Account Information</h3>
+                <Label>Collect Device Info by Default</Label>
                 <p className="text-sm text-muted-foreground">
-                  User ID: {user?.id}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Member since: {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+                  New sessions will collect device information
                 </p>
               </div>
+              <Switch
+                checked={settings.data_collection_default}
+                onCheckedChange={(checked) => updateSettings('data_collection_default', checked)}
+              />
             </div>
+
             <Separator />
-            <div className="flex justify-between items-center">
+
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-medium">Email Notifications</h3>
-                <p className="text-sm text-muted-foreground">Receive email notifications about your sessions</p>
+                <Label>Collect IP & Location by Default</Label>
+                <p className="text-sm text-muted-foreground">
+                  New sessions will collect IP and geolocation data
+                </p>
               </div>
-              <Button variant="outline">Configure</Button>
+              <Switch
+                checked={settings.ip_collection_default}
+                onCheckedChange={(checked) => updateSettings('ip_collection_default', checked)}
+              />
             </div>
-            <Separator />
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-medium text-destructive">Delete Account</h3>
-                <p className="text-sm text-muted-foreground">Permanently delete your account and all data</p>
-              </div>
-              <Button variant="destructive">Delete Account</Button>
-            </div>
+          </CardContent>
+        </Card>
+
+        {/* Account Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Account Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button variant="outline" className="w-full">
+              Change Password
+            </Button>
+            <Button variant="outline" className="w-full">
+              Export Data
+            </Button>
+            <Button variant="destructive" className="w-full">
+              Delete Account
+            </Button>
           </CardContent>
         </Card>
       </div>
