@@ -4,31 +4,26 @@ export const defaultMainPages = [
     id: 'contact_form',
     name: 'Contact Form',
     description: 'Professional contact form for business inquiries',
-    created_by: 'system',
   },
   {
     id: 'survey_form',
     name: 'Survey Form',
     description: 'Customer feedback and survey collection',
-    created_by: 'system',
   },
   {
     id: 'newsletter_signup',
     name: 'Newsletter Signup',
     description: 'Email subscription and newsletter signup',
-    created_by: 'system',
   },
   {
     id: 'lead_generation',
     name: 'Lead Generation',
     description: 'Sales lead capture and qualification',
-    created_by: 'system',
   },
   {
     id: 'event_registration',
     name: 'Event Registration',
     description: 'Event registration and attendee management',
-    created_by: 'system',
   },
 ];
 
@@ -72,7 +67,6 @@ export const defaultSubPages = [
         window.submitSessionData(data);
       });
     `,
-    created_by: 'system',
   },
   // Survey Form Sub Pages
   {
@@ -137,7 +131,6 @@ export const defaultSubPages = [
         });
       });
     `,
-    created_by: 'system',
   },
   // Newsletter Signup Sub Pages
   {
@@ -205,6 +198,5 @@ export const defaultSubPages = [
         window.submitSessionData(data);
       });
     `,
-    created_by: 'system',
   },
 ];

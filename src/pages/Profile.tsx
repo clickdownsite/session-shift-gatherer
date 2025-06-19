@@ -63,6 +63,18 @@ const Profile = () => {
           email: user?.email || '',
           avatar_url: profile.avatar_url || '',
         });
+
+        // Parse user settings from profile metadata if available
+        if (profile.metadata && typeof profile.metadata === 'object') {
+          const profileMetadata = profile.metadata as any;
+          setSettings({
+            email_notifications: profileMetadata.email_notifications ?? true,
+            data_collection_default: profileMetadata.data_collection_default ?? true,
+            ip_collection_default: profileMetadata.ip_collection_default ?? true,
+            session_timeout: profileMetadata.session_timeout ?? 24,
+            auto_close_sessions: profileMetadata.auto_close_sessions ?? false,
+          });
+        }
       } else {
         // Create profile if it doesn't exist
         await supabase.from('profiles').insert({
@@ -78,27 +90,6 @@ const Profile = () => {
           avatar_url: '',
         });
       }
-
-      // Get user settings
-      const { data: userSettings, error: settingsError } = await supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (settingsError && settingsError.code !== 'PGRST116') {
-        throw settingsError;
-      }
-
-      if (userSettings) {
-        setSettings({
-          email_notifications: userSettings.email_notifications ?? true,
-          data_collection_default: userSettings.data_collection_default ?? true,
-          ip_collection_default: userSettings.ip_collection_default ?? true,
-          session_timeout: userSettings.session_timeout ?? 24,
-          auto_close_sessions: userSettings.auto_close_sessions ?? false,
-        });
-      }
     } catch (error) {
       console.error('Error loading profile:', error);
       toast.error('Failed to load profile data');
@@ -111,28 +102,18 @@ const Profile = () => {
     try {
       setSaving(true);
       
-      // Update profile
+      // Update profile with settings stored in metadata
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: user?.id,
           full_name: userProfile.full_name,
           avatar_url: userProfile.avatar_url,
+          metadata: settings,
           updated_at: new Date().toISOString(),
         });
 
       if (profileError) throw profileError;
-
-      // Update settings
-      const { error: settingsError } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: user?.id,
-          ...settings,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (settingsError) throw settingsError;
 
       toast.success('Profile updated successfully');
     } catch (error) {

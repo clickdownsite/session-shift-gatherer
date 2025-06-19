@@ -14,21 +14,17 @@ export const useMainPages = () => {
       const { data, error } = await supabase
         .from('main_pages')
         .select('*')
-        .or(`created_by.eq.${user?.id || 'system'},created_by.eq.system`)
-        .order('created_by', { ascending: false }) // User pages first
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       
-      // If no system pages exist, create them
-      if (!data.some(page => page.created_by === 'system')) {
+      // If no pages exist, create default ones
+      if (!data || data.length === 0) {
         await createDefaultPages();
         // Refetch after creating defaults
         const { data: newData, error: newError } = await supabase
           .from('main_pages')
           .select('*')
-          .or(`created_by.eq.${user?.id || 'system'},created_by.eq.system`)
-          .order('created_by', { ascending: false })
           .order('created_at', { ascending: false });
         
         if (newError) throw newError;
@@ -39,7 +35,7 @@ export const useMainPages = () => {
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime)
   });
 };
 
@@ -52,8 +48,6 @@ export const useSubPages = () => {
       const { data, error } = await supabase
         .from('sub_pages')
         .select('*')
-        .or(`created_by.eq.${user?.id || 'system'},created_by.eq.system`)
-        .order('created_by', { ascending: false })
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -61,7 +55,7 @@ export const useSubPages = () => {
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
-    cacheTime: 10 * 60 * 1000,
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime)
   });
 };
 
