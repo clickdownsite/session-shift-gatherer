@@ -27,21 +27,22 @@ You are a web development expert. I need you to modify the provided HTML, CSS, a
 Requirements:
 1. Keep the visual appearance exactly the same
 2. Add form submission functionality that calls window.submitSessionData(formData)
-3. Ensure all form fields are properly captured
+3. Ensure all form fields are properly captured: ${request.fields.join(', ')}
 4. Add proper form validation if needed
 5. Make sure the code works without external dependencies
+6. Add event listeners to forms to prevent default submission and call submitSessionData instead
+7. If no forms exist, create a simple form with the specified fields
 
 Current code:
 HTML: ${request.html}
 CSS: ${request.css}
 JavaScript: ${request.javascript}
-Form fields to capture: ${request.fields.join(', ')}
 
-Please return the modified code maintaining the same structure. Return your response in this exact JSON format:
+Please return ONLY a valid JSON response in this exact format:
 {
-  "html": "modified HTML here",
-  "css": "modified CSS here", 
-  "javascript": "modified JavaScript here"
+  "html": "modified HTML with proper form submission",
+  "css": "modified CSS preserving appearance", 
+  "javascript": "modified JavaScript with submitSessionData integration"
 }
 `;
 
@@ -61,13 +62,14 @@ Please return the modified code maintaining the same structure. Return your resp
           temperature: 0.1,
           topK: 1,
           topP: 1,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
         }
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
@@ -77,13 +79,27 @@ Please return the modified code maintaining the same structure. Return your resp
       throw new Error('No response from AI');
     }
 
-    // Extract JSON from the response
-    const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+    // Clean and extract JSON from the response
+    let jsonText = generatedText.trim();
+    
+    // Remove markdown code blocks if present
+    if (jsonText.startsWith('```json')) {
+      jsonText = jsonText.replace(/```json\s*/, '').replace(/\s*```$/, '');
+    } else if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    // Find JSON object in the text
+    const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('Invalid response format from AI');
+      throw new Error('Invalid response format from AI - no JSON found');
     }
 
     const result = JSON.parse(jsonMatch[0]);
+    
+    if (!result.html && !result.css && !result.javascript) {
+      throw new Error('AI response missing required fields');
+    }
     
     return {
       html: result.html || request.html,

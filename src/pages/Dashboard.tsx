@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from '@/components/ui/sonner';
-import { LinkIcon, Copy, Download, X, Plus, Bell, Eye, LogOut, Info } from 'lucide-react';
+import { LinkIcon, Copy, Download, X, Plus, Bell, Eye, LogOut, Info, Code } from 'lucide-react';
 import { useSessions } from '@/hooks/useSessions';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -27,9 +27,11 @@ const Dashboard = () => {
       ip_address: string; 
       location: string; 
       form_data: Record<string, string>; 
+      device_info?: any;
     }> 
   } | null>(null);
   const [detailViewSessionId, setDetailViewSessionId] = useState<string | null>(null);
+  const [showRawData, setShowRawData] = useState(false);
 
   const { sessionData } = useSessionEntries(viewingSessionData?.sessionId);
 
@@ -135,6 +137,24 @@ const Dashboard = () => {
       hour: '2-digit',
       minute: '2-digit'
     }).format(date);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
+
+  const exportSessionData = () => {
+    if (!sessionData.length) return;
+    
+    const dataStr = JSON.stringify(sessionData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `session-${viewingSessionData?.sessionId}-data.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -301,15 +321,50 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Data Viewing Dialog */}
+          {/* Enhanced Data Viewing Dialog */}
           <Dialog open={!!viewingSessionData} onOpenChange={() => setViewingSessionData(null)}>
-            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Session Data: {viewingSessionData?.sessionId}</DialogTitle>
+                <div className="flex items-center justify-between">
+                  <DialogTitle>Session Data: {viewingSessionData?.sessionId}</DialogTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowRawData(!showRawData)}
+                    >
+                      <Code className="h-4 w-4 mr-2" />
+                      {showRawData ? 'Formatted' : 'Raw JSON'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportSessionData}
+                      disabled={!sessionData.length}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
+                  </div>
+                </div>
               </DialogHeader>
               {sessionData.length === 0 ? (
                 <div className="text-center py-8">
                   <p>No data has been captured for this session yet.</p>
+                </div>
+              ) : showRawData ? (
+                <div className="space-y-4">
+                  <pre className="bg-gray-50 p-4 rounded-lg text-xs overflow-auto max-h-96 border">
+                    <code>{JSON.stringify(sessionData, null, 2)}</code>
+                  </pre>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(JSON.stringify(sessionData, null, 2))}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Raw Data
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -320,34 +375,57 @@ const Dashboard = () => {
                           <div className="text-sm text-muted-foreground">
                             Entry #{index + 1} • {new Date(entry.timestamp).toLocaleString()}
                           </div>
-                          <Badge variant="outline" className="text-xs">
-                            {entry.location}
-                          </Badge>
+                          <div className="flex gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {entry.location}
+                            </Badge>
+                            {entry.ip_address && (
+                              <Badge variant="secondary" className="text-xs">
+                                {entry.ip_address}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-2">
-                          {Object.entries(entry.form_data || {}).map(([key, value]) => (
-                            <div key={key} className="grid grid-cols-12 gap-2 items-center">
-                              <div className="col-span-4 font-medium text-sm">{key}:</div>
-                              <div className="col-span-7 text-sm truncate">
-                                {key.includes('password') ? '••••••••' : String(value)}
-                              </div>
-                              <div className="col-span-1 flex justify-end">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-6 w-6" 
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(String(value));
-                                    toast.success("Value copied to clipboard");
-                                  }}
-                                >
-                                  <Copy className="h-3.5 w-3.5" />
-                                </Button>
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="font-medium mb-2">Form Data</h4>
+                            <div className="space-y-2">
+                              {Object.entries(entry.form_data || {}).map(([key, value]) => (
+                                <div key={key} className="grid grid-cols-12 gap-2 items-center">
+                                  <div className="col-span-4 font-medium text-sm">{key}:</div>
+                                  <div className="col-span-7 text-sm truncate">
+                                    {key.includes('password') ? '••••••••' : String(value)}
+                                  </div>
+                                  <div className="col-span-1 flex justify-end">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-6 w-6" 
+                                      onClick={() => copyToClipboard(String(value))}
+                                    >
+                                      <Copy className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {entry.device_info && (
+                            <div>
+                              <h4 className="font-medium mb-2">Device Information</h4>
+                              <div className="text-xs text-muted-foreground space-y-1">
+                                <div>Browser: {entry.device_info.userAgent}</div>
+                                <div>Platform: {entry.device_info.platform}</div>
+                                <div>Language: {entry.device_info.language}</div>
+                                <div>Screen: {entry.device_info.screen?.width}x{entry.device_info.screen?.height}</div>
+                                <div>Viewport: {entry.device_info.viewport?.width}x{entry.device_info.viewport?.height}</div>
+                                <div>Timezone: {entry.device_info.timezone}</div>
                               </div>
                             </div>
-                          ))}
+                          )}
                         </div>
                       </CardContent>
                     </Card>

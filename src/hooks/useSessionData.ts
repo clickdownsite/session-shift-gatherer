@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SessionPageData {
@@ -31,6 +31,7 @@ export const useSessionData = (sessionId: string | undefined) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Memoize the fetchData function to prevent unnecessary re-renders
   const fetchData = useCallback(async () => {
     if (!sessionId) {
       setError('No session ID provided');
@@ -42,10 +43,16 @@ export const useSessionData = (sessionId: string | undefined) => {
       setLoading(true);
       setError(null);
 
-      // Get session data with simplified query
+      // Single optimized query to get all needed data
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
-        .select('*')
+        .select(`
+          *,
+          main_pages!inner(
+            id,
+            name
+          )
+        `)
         .eq('id', sessionId)
         .single();
 
@@ -59,9 +66,9 @@ export const useSessionData = (sessionId: string | undefined) => {
 
       // Determine target sub page ID
       let targetSubPageId = sessionData.current_sub_page_id;
+      let flowData = null;
 
       // Check flow logic if needed
-      let flowData = null;
       if (sessionData.flow_id && typeof sessionData.current_flow_step === 'number') {
         const { data: fData } = await supabase
           .from('page_flows')
@@ -75,7 +82,7 @@ export const useSessionData = (sessionId: string | undefined) => {
         }
       }
 
-      // Get sub page content
+      // Get sub page content with minimal fields for better performance
       const { data: subPageData, error: subPageError } = await supabase
         .from('sub_pages')
         .select('id, name, html, css, javascript')
@@ -106,30 +113,41 @@ export const useSessionData = (sessionId: string | undefined) => {
     }
   }, [sessionId]);
 
+  // Memoize the subscription setup
+  const subscriptionChannel = useMemo(() => {
+    if (!sessionId) return null;
+    return `session_${sessionId}`;
+  }, [sessionId]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Simplified real-time updates
+  // Optimized real-time updates with debouncing
   useEffect(() => {
-    if (!sessionId) return;
+    if (!subscriptionChannel) return;
+
+    let timeoutId: NodeJS.Timeout;
 
     const channel = supabase
-      .channel(`session_${sessionId}`)
+      .channel(subscriptionChannel)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'sessions',
         filter: `id=eq.${sessionId}`
       }, () => {
-        fetchData();
+        // Debounce rapid updates
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(fetchData, 100);
       })
       .subscribe();
 
     return () => {
+      clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
-  }, [sessionId, fetchData]);
+  }, [subscriptionChannel, fetchData]);
 
   return { data, loading, error, refetch: fetchData };
 };
