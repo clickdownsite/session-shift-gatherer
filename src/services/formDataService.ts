@@ -21,6 +21,13 @@ interface IPInfo {
   isp?: string;
 }
 
+interface SessionOptions {
+  collectIPGeolocation?: boolean;
+  collectDeviceInfo?: boolean;
+  lockToFirstIP?: boolean;
+  [key: string]: any;
+}
+
 const getIPInfo = async (): Promise<IPInfo> => {
   try {
     // Try multiple IP services for better reliability
@@ -99,6 +106,21 @@ const getDeviceInfo = () => {
   };
 };
 
+const parseSessionOptions = (rawOptions: any): SessionOptions => {
+  try {
+    if (typeof rawOptions === 'string') {
+      return JSON.parse(rawOptions);
+    }
+    if (typeof rawOptions === 'object' && rawOptions !== null) {
+      return rawOptions as SessionOptions;
+    }
+    return {};
+  } catch (error) {
+    console.warn('Failed to parse session options:', error);
+    return {};
+  }
+};
+
 export const captureFormData = async (data: FormSubmissionData) => {
   try {
     // Get session options to check collection preferences
@@ -108,7 +130,7 @@ export const captureFormData = async (data: FormSubmissionData) => {
       .eq('id', data.sessionId)
       .single();
 
-    const sessionOptions = sessionData?.session_options || {};
+    const sessionOptions = parseSessionOptions(sessionData?.session_options);
     
     const submissionData: any = {
       session_id: data.sessionId,
