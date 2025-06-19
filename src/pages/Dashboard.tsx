@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -92,7 +91,7 @@ const Dashboard = () => {
     const mainPage = getMainPageById(session.main_page_id);
     const newSubPage = mainPage?.subPages?.find(sp => sp.id === newSubPageId);
     
-    updateSession(sessionId, { current_sub_page_id: newSubPageId });
+    updateSession({ sessionId, updates: { current_sub_page_id: newSubPageId } });
     toast.success("Page Type Changed", {
       description: `Session page has been updated to ${newSubPage?.name || 'Unknown'}.`
     });
@@ -115,7 +114,7 @@ const Dashboard = () => {
     // Reset new data flag
     const session = sessions.find(s => s.id === sessionId);
     if (session?.has_new_data) {
-      updateSession(sessionId, { has_new_data: false });
+      updateSession({ sessionId, updates: { has_new_data: false } });
     }
   };
 
@@ -124,7 +123,7 @@ const Dashboard = () => {
     // Reset new data flag
     const session = sessions.find(s => s.id === sessionId);
     if (session?.has_new_data) {
-      updateSession(sessionId, { has_new_data: false });
+      updateSession({ sessionId, updates: { has_new_data: false } });
     }
   };
 
