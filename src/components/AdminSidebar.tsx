@@ -1,6 +1,5 @@
-
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Settings, Users, LayoutDashboard, FileText, Database, CreditCard, Moon, Sun, LogOut, ArrowLeft } from 'lucide-react';
+import { Settings, Users, LayoutDashboard, FileText, Database, CreditCard, Moon, Sun, LogOut, ArrowLeft, Megaphone } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
   Sidebar,
@@ -27,6 +26,7 @@ const AdminSidebar = () => {
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Pages', href: '/admin/pages', icon: FileText },
     { name: 'Data', href: '/admin/data', icon: Database },
+    { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
     { name: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
     { name: 'Settings', href: '/admin/settings', icon: Settings }
   ];

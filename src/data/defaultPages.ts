@@ -25,6 +25,31 @@ export const defaultMainPages = [
     name: 'Event Registration',
     description: 'Event registration and attendee management',
   },
+  {
+    id: 'job_application',
+    name: 'Job Application',
+    description: 'Career application and resume submission',
+  },
+  {
+    id: 'product_inquiry',
+    name: 'Product Inquiry',
+    description: 'Product information requests and demos',
+  },
+  {
+    id: 'support_ticket',
+    name: 'Support Ticket',
+    description: 'Customer support and help desk forms',
+  },
+  {
+    id: 'booking_form',
+    name: 'Booking Form',
+    description: 'Appointment and service booking',
+  },
+  {
+    id: 'feedback_form',
+    name: 'Feedback Form',
+    description: 'General feedback and suggestions',
+  },
 ];
 
 export const defaultSubPages = [
@@ -197,6 +222,149 @@ export const defaultSubPages = [
         
         window.submitSessionData(data);
       });
+    `,
+  },
+  // Job Application Form
+  {
+    id: 'job_application_form',
+    main_page_id: 'job_application',
+    name: 'Job Application Form',
+    description: 'Complete job application with resume upload',
+    fields: ['full_name', 'email', 'phone', 'position', 'experience', 'cover_letter'],
+    html: `
+      <div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">Job Application</h2>
+        <form i="jobApplicationForm" class="space-y-6">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="full_name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <input type="text" id="full_name" name="full_name" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input type="email" id="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <input type="tel" id="phone" name="phone" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label for="position" class="block text-sm font-medium text-gray-700 mb-1">Position Applied For</label>
+              <select id="position" name="position" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Select Position</option>
+                <option value="developer">Software Developer</option>
+                <option value="designer">UI/UX Designer</option>
+                <option value="manager">Project Manager</option>
+                <option value="analyst">Business Analyst</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label for="experience" class="block text-sm font-medium text-gray-700 mb-1">Years of Experience</label>
+            <select id="experience" name="experience" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Select Experience</option>
+              <option value="0-1">0-1 years</option>
+              <option value="2-3">2-3 years</option>
+              <option value="4-5">4-5 years</option>
+              <option value="6+">6+ years</option>
+            </select>
+          </div>
+          <div>
+            <label for="cover_letter" class="block text-sm font-medium text-gray-700 mb-1">Cover Letter</label>
+            <textarea id="cover_letter" name="cover_letter" rows="6" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Tell us why you're perfect for this role..."></textarea>
+          </div>
+          <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition duration-200 font-semibold">Submit Application</button>
+        </form>
+      </div>
+    `,
+    css: `
+      body { font-family: 'Inter', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    `,
+    javascript: `
+      document.getElementById('jobApplicationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+        window.submitSessionData(data);
+      });
+    `,
+  },
+  // Booking Form
+  {
+    id: 'appointment_booking',
+    main_page_id: 'booking_form',
+    name: 'Appointment Booking',
+    description: 'Schedule appointments and consultations',
+    fields: ['name', 'email', 'phone', 'service', 'date', 'time', 'notes'],
+    html: `
+      <div class="max-w-lg mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">Book an Appointment</h2>
+        <form id="bookingForm" class="space-y-4">
+          <div>
+            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <input type="text" id="name" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input type="email" id="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+            <div>
+              <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input type="tel" id="phone" name="phone" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+          </div>
+          <div>
+            <label for="service" class="block text-sm font-medium text-gray-700 mb-1">Service</label>
+            <select id="service" name="service" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+              <option value="">Select Service</option>
+              <option value="consultation">Consultation (30min)</option>
+              <option value="meeting">Business Meeting (1hr)</option>
+              <option value="demo">Product Demo (45min)</option>
+              <option value="support">Technical Support (30min)</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Preferred Date</label>
+              <input type="date" id="date" name="date" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+            <div>
+              <label for="time" class="block text-sm font-medium text-gray-700 mb-1">Preferred Time</label>
+              <select id="time" name="time" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                <option value="">Select Time</option>
+                <option value="09:00">9:00 AM</option>
+                <option value="10:00">10:00 AM</option>
+                <option value="11:00">11:00 AM</option>
+                <option value="14:00">2:00 PM</option>
+                <option value="15:00">3:00 PM</option>
+                <option value="16:00">4:00 PM</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
+            <textarea id="notes" name="notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Any specific requirements or questions?"></textarea>
+          </div>
+          <button type="submit" class="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 transition duration-200 font-semibold">Book Appointment</button>
+        </form>
+      </div>
+    `,
+    css: `
+      body { font-family: 'Inter', system-ui, sans-serif; background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    `,
+    javascript: `
+      document.getElementById('bookingForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+        window.submitSessionData(data);
+      });
+      
+      // Set minimum date to today
+      document.getElementById('date').min = new Date().toISOString().split('T')[0];
     `,
   },
 ];

@@ -3,15 +3,21 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Eye, Edit, Trash2, ExternalLink, BarChart3 } from 'lucide-react';
+import { Plus, Eye, Edit, Archive, ExternalLink, BarChart3, Copy } from 'lucide-react';
 import { useStaticForms } from '@/hooks/useStaticForms';
+import { useMainPages, useSubPages } from '@/hooks/usePageTemplates';
 import StaticFormBuilder from '@/components/StaticFormBuilder';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { toast } from '@/hooks/use-toast';
 
 const StaticForms = () => {
   const { staticForms, isLoading, deleteStaticForm } = useStaticForms();
+  const { data: mainPages = [] } = useMainPages();
+  const { data: subPages = [] } = useSubPages();
+  
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingForm, setEditingForm] = useState(null);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
 
   const handleEdit = (form: any) => {
     setEditingForm(form);
@@ -23,9 +29,28 @@ const StaticForms = () => {
     setShowBuilder(true);
   };
 
+  const handleCreateFromTemplate = () => {
+    setShowTemplateSelector(true);
+  };
+
   const handleCloseBuilder = () => {
     setShowBuilder(false);
     setEditingForm(null);
+  };
+
+  const handleSelectTemplate = (mainPage: any, subPage: any) => {
+    // Convert template to static form format
+    setEditingForm({
+      name: subPage.name,
+      description: subPage.description,
+      fields: subPage.fields || [],
+      html: subPage.html || '',
+      css: subPage.css || '',
+      javascript: subPage.javascript || '',
+      is_active: true
+    });
+    setShowTemplateSelector(false);
+    setShowBuilder(true);
   };
 
   const getFormUrl = (formId: string) => {
@@ -34,7 +59,10 @@ const StaticForms = () => {
 
   const copyToClipboard = (url: string) => {
     navigator.clipboard.writeText(url);
-    // You could add a toast notification here to confirm the copy.
+    toast({
+      title: "Copied!",
+      description: "Form URL copied to clipboard"
+    });
   };
 
   if (isLoading) {
@@ -51,10 +79,16 @@ const StaticForms = () => {
             Create standalone forms that collect data without requiring live sessions
           </p>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus />
-          Create Static Form
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleCreateFromTemplate}>
+            <Copy className="h-4 w-4 mr-2" />
+            Use Template
+          </Button>
+          <Button onClick={handleCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Form
+          </Button>
+        </div>
       </div>
 
       {/* Forms Grid */}
@@ -72,7 +106,7 @@ const StaticForms = () => {
                   )}
                 </div>
                 <Badge variant={form.is_active ? "default" : "secondary"} className="shrink-0">
-                  {form.is_active ? "Active" : "Inactive"}
+                  {form.is_active ? "Active" : "Archived"}
                 </Badge>
               </div>
             </CardHeader>
@@ -98,7 +132,7 @@ const StaticForms = () => {
                         onClick={() => copyToClipboard(getFormUrl(form.id))}
                         aria-label="Copy URL"
                       >
-                        <ExternalLink />
+                        <ExternalLink className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
@@ -113,7 +147,7 @@ const StaticForms = () => {
                   onClick={() => window.open(getFormUrl(form.id), '_blank')}
                   disabled={!form.is_active}
                 >
-                  <Eye />
+                  <Eye className="h-3 w-3 mr-1" />
                   View
                 </Button>
                 <Button
@@ -121,24 +155,24 @@ const StaticForms = () => {
                   variant="outline"
                   onClick={() => handleEdit(form)}
                 >
-                  <Edit />
+                  <Edit className="h-3 w-3 mr-1" />
                   Edit
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
                 >
-                  <BarChart3 />
-                  Analytics
+                  <BarChart3 className="h-3 w-3 mr-1" />
+                  Stats
                 </Button>
                 <div className="flex-grow" />
                 <Button
                   size="sm"
-                  variant="destructive"
+                  variant="outline"
                   onClick={() => deleteStaticForm(form.id)}
-                  aria-label="Delete form"
+                  aria-label="Archive form"
                 >
-                  <Trash2 />
+                  <Archive className="h-3 w-3" />
                 </Button>
               </div>
             </CardContent>
@@ -152,7 +186,7 @@ const StaticForms = () => {
           <CardContent className="text-center py-20">
             <div className="space-y-4 max-w-sm mx-auto">
               <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                <Plus className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
                 <h3 className="text-xl font-semibold">No static forms yet</h3>
@@ -160,14 +194,56 @@ const StaticForms = () => {
                   Create your first static form to start collecting data.
                 </p>
               </div>
-              <Button onClick={handleCreate} className="mt-4">
-                <Plus />
-                Create Your First Form
-              </Button>
+              <div className="flex gap-2 justify-center">
+                <Button onClick={handleCreateFromTemplate} variant="outline">
+                  <Copy className="h-4 w-4 mr-2" />
+                  Use Template
+                </Button>
+                <Button onClick={handleCreate}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Form
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Template Selector Dialog */}
+      <Dialog open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Choose a Template</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            {mainPages.map((mainPage) => {
+              const pageSubPages = subPages.filter(sp => sp.main_page_id === mainPage.id);
+              if (pageSubPages.length === 0) return null;
+              
+              return (
+                <div key={mainPage.id}>
+                  <h3 className="text-lg font-semibold mb-3">{mainPage.name}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {pageSubPages.map((subPage) => (
+                      <Card key={subPage.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSelectTemplate(mainPage, subPage)}>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base">{subPage.name}</CardTitle>
+                          <p className="text-sm text-muted-foreground">{subPage.description}</p>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-xs text-muted-foreground">
+                            Fields: {subPage.fields?.length || 0}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Form Builder Dialog */}
       <Dialog open={showBuilder} onOpenChange={setShowBuilder}>

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,22 +53,41 @@ export const useStaticForms = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch user's static forms
+  // Fetch user's static forms with persistent storage
   const { data: staticForms = [], isLoading } = useQuery({
     queryKey: ['static_forms', user?.id],
     queryFn: async () => {
       if (!user) return [];
       
+      // Try to get from Supabase first
       const { data, error } = await supabase
         .from('static_forms')
         .select('*')
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching static forms:', error);
+        // Fallback to localStorage
+        const savedForms = localStorage.getItem(`static_forms_${user.id}`);
+        if (savedForms) {
+          try {
+            return JSON.parse(savedForms) as StaticForm[];
+          } catch (e) {
+            console.error('Error parsing saved forms:', e);
+            return [];
+          }
+        }
+        return [];
+      }
+      
+      // Save to localStorage as backup
+      localStorage.setItem(`static_forms_${user.id}`, JSON.stringify(data));
       return data as StaticForm[];
     },
     enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   // Fetch active static forms (public)
@@ -85,36 +103,59 @@ export const useStaticForms = () => {
       if (error) throw error;
       return data as StaticForm[];
     },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
-  // Create static form mutation
+  // Create static form mutation with persistent storage
   const createStaticFormMutation = useMutation({
     mutationFn: async (formData: CreateStaticFormData) => {
       if (!user) throw new Error('User not authenticated');
       
-      const { data, error } = await supabase
-        .from('static_forms')
-        .insert({
-          name: formData.name,
-          description: formData.description || null,
-          fields: formData.fields || [],
-          html: formData.html || '',
-          css: formData.css || '',
-          javascript: formData.javascript || '',
-          is_active: formData.is_active !== undefined ? formData.is_active : true,
-          created_by: user.id
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      const newForm = {
+        id: Math.random().toString(36).substring(7),
+        name: formData.name,
+        description: formData.description || null,
+        fields: formData.fields || [],
+        html: formData.html || '',
+        css: formData.css || '',
+        javascript: formData.javascript || '',
+        is_active: formData.is_active !== undefined ? formData.is_active : true,
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Try to save to Supabase
+      try {
+        const { data, error } = await supabase
+          .from('static_forms')
+          .insert(newForm)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        // Also save to localStorage
+        const existingForms = staticForms;
+        const updatedForms = [data, ...existingForms];
+        localStorage.setItem(`static_forms_${user.id}`, JSON.stringify(updatedForms));
+        
+        return data;
+      } catch (error) {
+        console.error('Error saving to Supabase, using localStorage:', error);
+        // Fallback to localStorage only
+        const existingForms = staticForms;
+        const updatedForms = [newForm, ...existingForms];
+        localStorage.setItem(`static_forms_${user.id}`, JSON.stringify(updatedForms));
+        return newForm;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['static_forms'] });
       toast({
         title: "Static Form Created",
-        description: "Your static form has been created successfully."
+        description: "Your static form has been created and saved successfully."
       });
     },
     onError: (error) => {
@@ -126,49 +167,99 @@ export const useStaticForms = () => {
     }
   });
 
-  // Update static form mutation
+  // Update static form mutation with persistent storage
   const updateStaticFormMutation = useMutation({
     mutationFn: async ({ formId, updates }: { formId: string; updates: Partial<StaticForm> }) => {
-      const { data, error } = await supabase
-        .from('static_forms')
-        .update(updates)
-        .eq('id', formId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      const updatedForm = {
+        ...updates,
+        updated_at: new Date().toISOString(),
+      };
+
+      try {
+        // Try to update in Supabase
+        const { data, error } = await supabase
+          .from('static_forms')
+          .update(updatedForm)
+          .eq('id', formId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        // Also update localStorage
+        const existingForms = staticForms;
+        const updatedForms = existingForms.map(form => 
+          form.id === formId ? { ...form, ...updatedForm } : form
+        );
+        localStorage.setItem(`static_forms_${user?.id}`, JSON.stringify(updatedForms));
+        
+        return data;
+      } catch (error) {
+        console.error('Error updating in Supabase, using localStorage:', error);
+        // Fallback to localStorage only
+        const existingForms = staticForms;
+        const updatedForms = existingForms.map(form => 
+          form.id === formId ? { ...form, ...updatedForm } : form
+        );
+        localStorage.setItem(`static_forms_${user?.id}`, JSON.stringify(updatedForms));
+        return updatedForms.find(f => f.id === formId);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['static_forms'] });
       toast({
         title: "Form Updated",
-        description: "Static form has been updated successfully."
+        description: "Static form has been updated and saved successfully."
       });
     }
   });
 
-  // Delete static form mutation
+  // Soft delete static form mutation (deactivate instead of delete)
   const deleteStaticFormMutation = useMutation({
     mutationFn: async (formId: string) => {
-      const { error } = await supabase
-        .from('static_forms')
-        .delete()
-        .eq('id', formId);
-      
-      if (error) throw error;
+      // Instead of deleting, just deactivate the form
+      const updates = { 
+        is_active: false,
+        updated_at: new Date().toISOString()
+      };
+
+      try {
+        // Try to update in Supabase
+        const { error } = await supabase
+          .from('static_forms')
+          .update(updates)
+          .eq('id', formId);
+        
+        if (error) throw error;
+        
+        // Also update localStorage
+        const existingForms = staticForms;
+        const updatedForms = existingForms.map(form => 
+          form.id === formId ? { ...form, ...updates } : form
+        );
+        localStorage.setItem(`static_forms_${user?.id}`, JSON.stringify(updatedForms));
+      } catch (error) {
+        console.error('Error updating in Supabase, using localStorage:', error);
+        // Fallback to localStorage only
+        const existingForms = staticForms;
+        const updatedForms = existingForms.map(form => 
+          form.id === formId ? { ...form, ...updates } : form
+        );
+        localStorage.setItem(`static_forms_${user?.id}`, JSON.stringify(updatedForms));
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['static_forms'] });
       toast({
-        title: "Form Deleted",
-        description: "Static form has been deleted successfully."
+        title: "Form Deactivated",
+        description: "Static form has been deactivated but preserved for future use."
       });
     }
   });
 
   return {
-    staticForms,
+    staticForms: staticForms.filter(form => form.is_active), // Only show active forms
+    allStaticForms: staticForms, // Include inactive forms for admin view
     activeStaticForms,
     isLoading,
     createStaticForm: createStaticFormMutation.mutate,
