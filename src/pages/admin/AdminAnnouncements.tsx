@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,12 +46,19 @@ const AdminAnnouncements = () => {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    content: string;
+    type: 'info' | 'warning' | 'success' | 'error';
+    active: boolean;
+    target_audience: 'all' | 'admins' | 'users';
+    expires_at: string;
+  }>({
     title: '',
     content: '',
-    type: 'info' as const,
+    type: 'info',
     active: true,
-    target_audience: 'all' as const,
+    target_audience: 'all',
     expires_at: '',
   });
 
@@ -243,7 +249,7 @@ const AdminAnnouncements = () => {
                 <select
                   id="type"
                   value={formData.type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as any }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'info' | 'warning' | 'success' | 'error' }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 >
                   <option value="info">Info</option>
@@ -258,7 +264,7 @@ const AdminAnnouncements = () => {
                 <select
                   id="audience"
                   value={formData.target_audience}
-                  onChange={(e) => setFormData(prev => ({ ...prev, target_audience: e.target.value as any }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, target_audience: e.target.value as 'all' | 'admins' | 'users' }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 >
                   <option value="all">All Users</option>
