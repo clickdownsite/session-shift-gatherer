@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Plus, Loader2 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import MainPageDialogContent from '@/components/user-pages/MainPageDialogContent';
 import SubPageDialogContent from '@/components/user-pages/SubPageDialogContent';
 import PreviewDialogContent from '@/components/user-pages/PreviewDialogContent';

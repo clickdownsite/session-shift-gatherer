@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import CreateSessionSkeleton from '@/components/session/CreateSessionSkeleton';
 import SessionSettings from '@/components/session/SessionSettings';
 import { usePageFlows } from '@/hooks/usePageFlows';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CreateSessionForm = () => {
   const { createSession, mainPages: rawMainPages, subPages, isLoading: sessionsLoading } = useSupabaseSessions();

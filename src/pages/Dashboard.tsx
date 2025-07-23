@@ -10,7 +10,7 @@ import { useSessions } from '@/hooks/useSessions';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useSessionEntries } from '@/hooks/useSessionEntries';
 import SessionDetailView from '@/components/session/SessionDetailView';
 import { useQuery } from '@tanstack/react-query';

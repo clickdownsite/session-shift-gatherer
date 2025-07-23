@@ -5,7 +5,7 @@ import { Menu, Calendar, Settings, User, LinkIcon, Moon, Sun, X, Shield } from '
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useTheme } from 'next-themes';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);

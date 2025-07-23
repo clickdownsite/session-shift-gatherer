@@ -6,6 +6,9 @@ interface User {
   name: string;
   email: string;
   isAdmin: boolean;
+  user_metadata?: {
+    full_name?: string;
+  };
 }
 
 interface AuthContextType {
@@ -13,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,14 +60,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         id: "demo1",
         name: "Demo User",
         email: "demo@example.com",
-        isAdmin: false
+        isAdmin: false,
+        user_metadata: { full_name: "Demo User" }
       });
     } else if (email === "admin@example.com" && password === "admin123") {
       setUser({
         id: "admin1",
         name: "Admin User",
         email: "admin@example.com",
-        isAdmin: true
+        isAdmin: true,
+        user_metadata: { full_name: "Admin User" }
       });
     } else {
       setLoading(false);
@@ -77,8 +83,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
   };
 
+  const signOut = logout; // Alias for compatibility
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, signOut }}>
       {children}
     </AuthContext.Provider>
   );
