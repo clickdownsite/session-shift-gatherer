@@ -10,6 +10,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -30,15 +31,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (savedUser) {
       return JSON.parse(savedUser);
     }
-    
-    // Default admin user for testing
-    return {
-      id: "admin1",
-      name: "Admin",
-      email: "admin@example.com",
-      isAdmin: true
-    };
+    return null;
   });
+  const [loading, setLoading] = useState(false);
 
   // Save user data to localStorage whenever it changes
   useEffect(() => {
@@ -50,25 +45,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user]);
 
   const login = async (email: string, password: string): Promise<void> => {
-    // This is a mock login function
-    // In a real app, this would make an API call to authenticate the user
+    setLoading(true);
     
-    // Mock user data based on email
-    if (email === "admin@example.com" && password === "password") {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Demo credentials
+    if (email === "demo@example.com" && password === "demo123") {
+      setUser({
+        id: "demo1",
+        name: "Demo User",
+        email: "demo@example.com",
+        isAdmin: false
+      });
+    } else if (email === "admin@example.com" && password === "admin123") {
       setUser({
         id: "admin1",
-        name: "Admin",
+        name: "Admin User",
         email: "admin@example.com",
         isAdmin: true
       });
     } else {
-      setUser({
-        id: "user1",
-        name: "User",
-        email: "user@example.com",
-        isAdmin: false
-      });
+      setLoading(false);
+      throw new Error('Invalid credentials');
     }
+    
+    setLoading(false);
   };
 
   const logout = () => {
@@ -76,7 +78,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

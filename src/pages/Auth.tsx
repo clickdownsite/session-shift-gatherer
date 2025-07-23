@@ -7,11 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader } from 'lucide-react';
 
 const Auth = () => {
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, login, loading } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,12 +36,11 @@ const Auth = () => {
     setIsLoading(true);
     setError('');
 
-    const { error } = await signIn(signInEmail, signInPassword);
-    
-    if (error) {
-      setError(error.message);
-    } else {
+    try {
+      await login(signInEmail, signInPassword);
       navigate('/dashboard');
+    } catch (error: any) {
+      setError(error.message || 'Login failed');
     }
     
     setIsLoading(false);
@@ -52,13 +51,11 @@ const Auth = () => {
     setIsLoading(true);
     setError('');
 
-    const { error } = await signUp(signUpEmail, signUpPassword, fullName);
-    
-    if (error) {
-      setError(error.message);
-    } else {
-      setError('');
-      alert('Check your email for the confirmation link!');
+    try {
+      await login(signUpEmail, signUpPassword);
+      navigate('/dashboard');
+    } catch (error: any) {
+      setError('Sign up not available in demo mode. Use demo credentials.');
     }
     
     setIsLoading(false);
@@ -81,8 +78,8 @@ const Auth = () => {
         <CardContent>
           <div className="mb-4 p-3 bg-muted rounded-lg text-sm">
             <p className="font-medium mb-2">Demo Credentials:</p>
-            <p>Email: demo@example.com</p>
-            <p>Password: demo123</p>
+            <p><strong>User:</strong> demo@example.com / demo123</p>
+            <p><strong>Admin:</strong> admin@example.com / admin123</p>
           </div>
           
           <Tabs defaultValue="signin" className="w-full">
