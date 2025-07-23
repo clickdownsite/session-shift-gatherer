@@ -1,9 +1,6 @@
-import React, { createContext, useContext, useEffect, useRef } from 'react';
-import { useSupabaseSessions } from '@/hooks/useSupabaseSession';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import React, { createContext, useContext, useState, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/sonner';
-import { useQueryClient } from '@tanstack/react-query';
 
 // Page type definitions
 interface SubPage {
@@ -72,135 +69,37 @@ export const useSessionContext = (): SessionContextType => {
 
 export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const { sessions, mainPages, subPages, createSession, updateSession, closeSession: closeSessionDB } = useSupabaseSessions();
-  const channelRef = useRef<any>(null);
-
-  // Optimized realtime subscriptions with debouncing
-  useEffect(() => {
-    if (!user) {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-      return;
-    }
-
-    const channelName = `session-data-changes-${user.id}`;
-    
-    // Check for existing active channels
-    const existingChannel = supabase.getChannels().find(c => 
-      c.topic.endsWith(channelName) && 
-      (c.state === 'joined' || c.state === 'joining')
-    );
-    
-    if (existingChannel) {
-      channelRef.current = existingChannel;
-      return;
-    }
-    
-    // Clean up any stale channels
-    supabase.getChannels().forEach(c => {
-      if (c.topic.endsWith(channelName) && c.state !== 'joined' && c.state !== 'joining') {
-        supabase.removeChannel(c);
-      }
-    });
-    
-    console.log('Setting up optimized realtime subscription.');
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
+  
+  // Mock data for demo
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [mainPages, setMainPages] = useState<any[]>([
+    {
+      id: 'main1',
+      name: 'Contact Form',
+      description: 'Simple contact form',
+      subPages: [
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'session_data'
-        },
-        (payload) => {
-          console.log('New session data received:', payload);
-          // Debounce invalidations
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['sessions'] });
-            queryClient.invalidateQueries({ queryKey: ['session_data'] });
-          }, 100);
-          toast("New Data Received", { description: `New form submission received` });
+          id: 'sub1',
+          name: 'Basic Info',
+          description: 'Name and email',
+          fields: ['name', 'email'],
+          html: '<div>Contact Form</div>',
+          parentId: 'main1'
         }
-      );
-
-    channel.subscribe((status, err) => {
-      console.log(`Realtime subscription status: ${status}`, err || '');
-    });
-
-    channelRef.current = channel;
-
-    return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
-      if (channelRef.current?.topic === channel.topic) {
-        channelRef.current = null;
-      }
-    };
-  }, [user?.id, queryClient]);
-
-  // Optimized data transformation with better memoization
-  const transformedMainPages = React.useMemo(() => {
-    if (!mainPages?.length || !subPages?.length) {
-      return [];
+      ]
     }
+  ]);
 
-    // Create lookup map for better performance
-    const subPageMap = subPages.reduce((acc, subPage) => {
-      if (subPage.main_page_id) {
-        if (!acc[subPage.main_page_id]) {
-          acc[subPage.main_page_id] = [];
-        }
-        acc[subPage.main_page_id].push({
-          ...subPage,
-          parentId: subPage.main_page_id,
-          fields: subPage.fields || []
-        });
-      }
-      return acc;
-    }, {} as Record<string, any[]>);
-
-    return mainPages.map(page => ({
-      ...page,
-      subPages: subPageMap[page.id] || []
-    }));
-  }, [mainPages, subPages]);
-
-  const mainPagesById = React.useMemo(() => {
-    return transformedMainPages.reduce((acc, page) => {
-      acc[page.id] = page;
-      return acc;
-    }, {} as Record<string, any>);
-  }, [transformedMainPages]);
-
-  const transformedSessions = React.useMemo(() => {
-    if (!sessions?.length) {
-      return [];
-    }
-
-    return sessions.map(session => ({
-      ...session,
-      mainPageId: session.main_page_id,
-      currentSubPageId: session.current_sub_page_id,
-      pageType: session.page_type,
-      createdAt: session.created_at,
-      hasNewData: session.has_new_data,
-      data: []
-    }));
-  }, [sessions]);
+  const transformedMainPages = useMemo(() => mainPages, [mainPages]);
+  const transformedSessions = useMemo(() => sessions, [sessions]);
 
   const getMainPageById = (mainPageId: string) => {
-    return mainPagesById[mainPageId];
+    return transformedMainPages.find(page => page.id === mainPageId);
   };
 
   const getSubPageById = (mainPageId: string, subPageId: string) => {
     const mainPage = getMainPageById(mainPageId);
-    const subPage = mainPage?.subPages?.find(subPage => subPage.id === subPageId);
-    return subPage;
+    return mainPage?.subPages?.find((subPage: any) => subPage.id === subPageId);
   };
 
   const getSessionById = (sessionId: string) => {
@@ -208,246 +107,123 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addSession = (mainPageId: string, subPageId: string) => {
-    console.log('Creating session with:', { mainPageId, subPageId });
-    createSession({ mainPageId, subPageId });
+    const newSession = {
+      id: `session_${Date.now()}`,
+      mainPageId,
+      currentSubPageId: subPageId,
+      createdAt: new Date().toISOString(),
+      active: true,
+      hasNewData: false,
+      data: []
+    };
+    setSessions(prev => [...prev, newSession]);
+    toast.success("Session created successfully");
   };
 
   const addSessionData = async (sessionId: string, data: any) => {
-    try {
-      console.log('Adding session data:', { sessionId, data });
-      const { error } = await supabase
-        .from('session_data')
-        .insert({
-          session_id: sessionId,
-          timestamp: data.timestamp,
-          ip_address: data.ip,
-          location: data.location,
-          form_data: data.formData
-        });
-
-      if (error) throw error;
-
-      await supabase
-        .from('sessions')
-        .update({ has_new_data: true })
-        .eq('id', sessionId);
-
-    } catch (error) {
-      console.error('Error adding session data:', error);
-    }
+    setSessions(prev => prev.map(session => 
+      session.id === sessionId 
+        ? { ...session, hasNewData: true, data: [...(session.data || []), data] }
+        : session
+    ));
+    toast("New Data Received", { description: "New form submission received" });
   };
 
   const switchSubPage = (sessionId: string, newSubPageId: string) => {
-    console.log('Switching sub page for session:', sessionId, 'to:', newSubPageId);
-    updateSession({ 
-      sessionId, 
-      updates: { 
-        current_sub_page_id: newSubPageId,
-        updated_at: new Date().toISOString()
-      } 
-    });
+    setSessions(prev => prev.map(session => 
+      session.id === sessionId 
+        ? { ...session, currentSubPageId: newSubPageId }
+        : session
+    ));
   };
 
   const resetNewDataFlag = (sessionId: string) => {
-    updateSession({ 
-      sessionId, 
-      updates: { has_new_data: false } 
-    });
+    setSessions(prev => prev.map(session => 
+      session.id === sessionId 
+        ? { ...session, hasNewData: false }
+        : session
+    ));
   };
 
   const closeSession = (sessionId: string) => {
-    closeSessionDB(sessionId);
+    setSessions(prev => prev.map(session => 
+      session.id === sessionId 
+        ? { ...session, active: false }
+        : session
+    ));
+    toast.success("Session closed");
   };
 
   const exportSessionData = async (sessionId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('session_data')
-        .select('*')
-        .eq('session_id', sessionId)
-        .order('timestamp', { ascending: false });
-
-      if (error) throw error;
-
-      const dataStr = `data:text/json;charset=utf-8,${encodeURIComponent(
-        JSON.stringify(data, null, 2)
-      )}`;
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute('href', dataStr);
-      downloadAnchorNode.setAttribute('download', `session_${sessionId}_data.json`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
-    } catch (error) {
-      console.error('Error exporting session data:', error);
-    }
+    const session = getSessionById(sessionId);
+    if (!session) return;
+    
+    const dataStr = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(session.data, null, 2)
+    )}`;
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute('href', dataStr);
+    downloadAnchorNode.setAttribute('download', `session_${sessionId}_data.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
   };
 
-  // Updated implementations for admin features
+  // Mock implementations for admin features
   const updateMainPage = async (updatedPage: any) => {
-    try {
-      console.log('Updating main page:', updatedPage);
-      const { error } = await supabase
-        .from('main_pages')
-        .update({
-          name: updatedPage.name,
-          description: updatedPage.description,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', updatedPage.id);
-
-      if (error) throw error;
-      
-      queryClient.invalidateQueries({ queryKey: ['main_pages'] });
-      
-      toast.success("Main page updated successfully");
-    } catch (error) {
-      console.error('Error updating main page:', error);
-      toast.error("Failed to update main page");
-      throw error;
-    }
+    setMainPages(prev => prev.map(page => 
+      page.id === updatedPage.id ? { ...page, ...updatedPage } : page
+    ));
+    toast.success("Main page updated successfully");
   };
 
   const updateSubPage = async (mainPageId: string, updatedSubPage: any) => {
-    try {
-      console.log('Updating sub page:', updatedSubPage);
-      const { error } = await supabase
-        .from('sub_pages')
-        .update({
-          name: updatedSubPage.name,
-          description: updatedSubPage.description,
-          html: updatedSubPage.html || '',
-          css: updatedSubPage.css || '',
-          javascript: updatedSubPage.javascript || '',
-          fields: updatedSubPage.fields || [],
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', updatedSubPage.id);
-
-      if (error) throw error;
-      
-      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
-      
-      toast.success("Sub page updated successfully");
-    } catch (error) {
-      console.error('Error updating sub page:', error);
-      toast.error("Failed to update sub page");
-      throw error;
-    }
+    setMainPages(prev => prev.map(page => 
+      page.id === mainPageId 
+        ? {
+            ...page,
+            subPages: page.subPages.map((subPage: any) => 
+              subPage.id === updatedSubPage.id ? { ...subPage, ...updatedSubPage } : subPage
+            )
+          }
+        : page
+    ));
+    toast.success("Sub page updated successfully");
   };
 
   const addMainPage = async (newPage: any): Promise<string> => {
-    try {
-      console.log('Adding main page:', newPage);
-      const newPageId = `page_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const { error } = await supabase
-        .from('main_pages')
-        .insert({
-          id: newPageId,
-          name: newPage.name,
-          description: newPage.description,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error inserting main page:', error);
-        toast.error("Failed to create main page");
-        throw error;
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ['main_pages'] });
-      
-      toast.success("Main page created successfully");
-      return newPageId;
-    } catch (error) {
-      console.error('Error adding main page:', error);
-      throw error;
-    }
+    const newPageId = `page_${Date.now()}`;
+    const pageWithId = { ...newPage, id: newPageId, subPages: [] };
+    setMainPages(prev => [...prev, pageWithId]);
+    toast.success("Main page created successfully");
+    return newPageId;
   };
 
   const addSubPage = async (mainPageId: string, newSubPage: any): Promise<string> => {
-    try {
-      console.log('Adding sub page:', newSubPage, 'to main page:', mainPageId);
-      const newSubPageId = `subpage_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const { error } = await supabase
-        .from('sub_pages')
-        .insert({
-          id: newSubPageId,
-          main_page_id: mainPageId,
-          name: newSubPage.name,
-          description: newSubPage.description,
-          html: newSubPage.html || '',
-          css: newSubPage.css || '',
-          javascript: newSubPage.javascript || '',
-          fields: newSubPage.fields || [],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error inserting sub page:', error);
-        toast.error("Failed to create sub page");
-        throw error;
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
-      
-      toast.success("Sub page created successfully");
-      return newSubPageId;
-    } catch (error) {
-      console.error('Error adding sub page:', error);
-      throw error;
-    }
+    const newSubPageId = `subpage_${Date.now()}`;
+    const subPageWithId = { ...newSubPage, id: newSubPageId, parentId: mainPageId };
+    
+    setMainPages(prev => prev.map(page => 
+      page.id === mainPageId 
+        ? { ...page, subPages: [...page.subPages, subPageWithId] }
+        : page
+    ));
+    toast.success("Sub page created successfully");
+    return newSubPageId;
   };
 
   const deleteMainPage = async (mainPageId: string) => {
-    try {
-      console.log('Deleting main page:', mainPageId);
-      
-      const { error: subPageError } = await supabase
-        .from('sub_pages')
-        .delete()
-        .eq('main_page_id', mainPageId);
-
-      if (subPageError) throw subPageError;
-
-      const { error } = await supabase
-        .from('main_pages')
-        .delete()
-        .eq('id', mainPageId);
-
-      if (error) throw error;
-      
-      queryClient.invalidateQueries({ queryKey: ['main_pages'] });
-      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
-      
-      toast.success("Main page deleted successfully");
-    } catch (error) {
-      console.error('Error deleting main page:', error);
-      toast.error("Failed to delete main page");
-      throw error;
-    }
+    setMainPages(prev => prev.filter(page => page.id !== mainPageId));
+    toast.success("Main page deleted successfully");
   };
 
   const deleteSubPage = async (mainPageId: string, subPageId: string) => {
-    try {
-      console.log('Deleting sub page:', subPageId);
-      const { error } = await supabase
-        .from('sub_pages')
-        .delete()
-        .eq('id', subPageId);
-
-      if (error) throw error;
-      
-      queryClient.invalidateQueries({ queryKey: ['sub_pages'] });
-      
-      toast.success("Sub page deleted successfully");
-    } catch (error) {
-      console.error('Error deleting sub page:', error);
-      toast.error("Failed to delete sub page");
-      throw error;
-    }
+    setMainPages(prev => prev.map(page => 
+      page.id === mainPageId 
+        ? { ...page, subPages: page.subPages.filter((subPage: any) => subPage.id !== subPageId) }
+        : page
+    ));
+    toast.success("Sub page deleted successfully");
   };
 
   return (
