@@ -1,41 +1,43 @@
 
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/hooks/useAuth';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
+import { Loader } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AdminProtectedRoute from '@/components/AdminProtectedRoute';
 import Layout from '@/components/Layout';
 import AdminLayout from '@/components/AdminLayout';
 
-// Pages
-import Index from '@/pages/Index';
-import Auth from '@/pages/Auth';
-import LoginPage from '@/pages/LoginPage';
-import Dashboard from '@/pages/Dashboard';
-import CreateSession from '@/pages/CreateSession';
-import SessionPage from '@/pages/SessionPage';
-import History from '@/pages/History';
-import Analytics from '@/pages/Analytics';
-import Settings from '@/pages/Settings';
-import Profile from '@/pages/Profile';
-import UserPages from '@/pages/UserPages';
-import StaticForms from '@/pages/StaticForms';
-import StaticFormPage from '@/pages/StaticFormPage';
-import Flows from '@/pages/Flows';
-import NotFound from '@/pages/NotFound';
+// Lazy load pages for better performance
+const Index = lazy(() => import('@/pages/Index'));
+const Auth = lazy(() => import('@/pages/Auth'));
+const LoginPage = lazy(() => import('@/pages/LoginPage'));
+const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const CreateSession = lazy(() => import('@/pages/CreateSession'));
+const SessionPage = lazy(() => import('@/pages/SessionPage'));
+const History = lazy(() => import('@/pages/History'));
+const Analytics = lazy(() => import('@/pages/Analytics'));
+const Settings = lazy(() => import('@/pages/Settings'));
+const Profile = lazy(() => import('@/pages/Profile'));
+const UserPages = lazy(() => import('@/pages/UserPages'));
+const StaticForms = lazy(() => import('@/pages/StaticForms'));
+const StaticFormPage = lazy(() => import('@/pages/StaticFormPage'));
+const Flows = lazy(() => import('@/pages/Flows'));
+const NotFound = lazy(() => import('@/pages/NotFound'));
 
 // Admin Pages
-import AdminLogin from '@/pages/AdminLogin';
-import AdminDashboard from '@/pages/admin/AdminDashboard';
-import AdminUsers from '@/pages/admin/AdminUsers';
-import AdminPages from '@/pages/admin/AdminPages';
-import AdminData from '@/pages/admin/AdminData';
-import AdminAnnouncements from '@/pages/admin/AdminAnnouncements';
-import AdminSubscriptions from '@/pages/admin/AdminSubscriptions';
-import AdminSettings from '@/pages/admin/AdminSettings';
+const AdminLogin = lazy(() => import('@/pages/AdminLogin'));
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'));
+const AdminPages = lazy(() => import('@/pages/admin/AdminPages'));
+const AdminData = lazy(() => import('@/pages/admin/AdminData'));
+const AdminAnnouncements = lazy(() => import('@/pages/admin/AdminAnnouncements'));
+const AdminSubscriptions = lazy(() => import('@/pages/admin/AdminSubscriptions'));
+const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,13 +48,20 @@ const queryClient = new QueryClient({
   },
 });
 
+const LoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <Loader className="h-8 w-8 animate-spin" />
+  </div>
+);
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <AuthProvider>
           <Router>
-            <Routes>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -227,7 +236,8 @@ function App() {
 
               {/* Catch all route */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
+              </Routes>
+            </Suspense>
           </Router>
         </AuthProvider>
       </ThemeProvider>

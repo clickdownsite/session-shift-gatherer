@@ -40,6 +40,11 @@ const AdminLogin = () => {
           <CardTitle className="text-center">Admin Login</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 p-3 bg-muted rounded-lg text-sm">
+            <p className="font-medium mb-1">Default Admin Password:</p>
+            <p className="font-mono">Password123</p>
+          </div>
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">Admin Password</Label>

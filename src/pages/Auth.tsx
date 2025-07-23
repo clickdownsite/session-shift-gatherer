@@ -79,6 +79,12 @@ const Auth = () => {
           <CardTitle className="text-center">Welcome</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 p-3 bg-muted rounded-lg text-sm">
+            <p className="font-medium mb-2">Demo Credentials:</p>
+            <p>Email: demo@example.com</p>
+            <p>Password: demo123</p>
+          </div>
+          
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>

@@ -40,6 +40,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    // Demo user bypass
+    if (email === 'demo@example.com' && password === 'demo123') {
+      return { error: null };
+    }
+    
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
