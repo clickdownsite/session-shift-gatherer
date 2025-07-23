@@ -22,19 +22,13 @@ export const useSupabaseSessions = () => {
   const mainPagesList = useMemo(() => mainPages || [], [mainPages]);
   const subPagesList = useMemo(() => subPages || [], [subPages]);
 
-  // Directly pass minimal variables to the mutation for fastest possible DB insert
-  const createSession = (
-    variables: CreateSessionVariables,
-    options?: MutateOptions<SessionType, Error, CreateSessionVariables, unknown>
-  ) => {
-    sessionsHook.createSession(
-      {
-        mainPageId: variables.mainPageId,
-        subPageId: variables.subPageId,
-        sessionOptions: variables.sessionOptions,
-      },
-      options
-    );
+  // Directly pass minimal variables to the createSession function
+  const createSession = (variables: CreateSessionVariables) => {
+    sessionsHook.createSession({
+      mainPageId: variables.mainPageId,
+      subPageId: variables.subPageId,
+      sessionOptions: variables.sessionOptions,
+    });
   };
 
   return {

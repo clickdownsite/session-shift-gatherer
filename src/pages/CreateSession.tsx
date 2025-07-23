@@ -109,26 +109,22 @@ const CreateSessionForm = () => {
     }
     setCreating(true); // Instant loading feedback
 
-    createSession(
-      { 
+    try {
+      createSession({ 
         mainPageId, 
         subPageId, 
         sessionOptions: { 
           ...sessionOptions, 
           ...(flowId && flowId !== "manual" ? { flowId } : {}) 
         }
-      },
-      {
-        onSuccess: () => {
-          toast.success("Session Created", { description: "New session has been created successfully." });
-          navigate('/dashboard');
-        },
-        onError: (err) => {
-          toast.error("Error", { description: err.message || "Failed to create session" });
-          setCreating(false);
-        }
-      }
-    );
+      });
+      
+      toast.success("Session Created", { description: "New session has been created successfully." });
+      navigate('/dashboard');
+    } catch (err: any) {
+      toast.error("Error", { description: err.message || "Failed to create session" });
+      setCreating(false);
+    }
   };
 
   // Derived selects: Always select valid IDs.
