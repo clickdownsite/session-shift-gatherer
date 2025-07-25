@@ -18,6 +18,9 @@ import { useMainPages, useSubPages } from '@/hooks/usePageTemplates';
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const { sessions, closeSession, updateSession } = useSessions();
+  
+  console.log('📊 Dashboard render - sessions:', sessions);
+  console.log('📊 Dashboard render - user:', user);
   const navigate = useNavigate();
   const [viewingSessionData, setViewingSessionData] = useState<{ 
     sessionId: string, 

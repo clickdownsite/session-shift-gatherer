@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { Session } from '@/types/session';
@@ -14,17 +14,40 @@ type CreateSessionVariables = {
 
 export const useSessions = () => {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  
+  // Initialize from localStorage
+  const [sessions, setSessions] = useState<Session[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem('sessions');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Save to localStorage whenever sessions change
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sessions', JSON.stringify(sessions));
+    }
+  }, [sessions]);
 
   const isLoading = false; // No loading in mock mode
 
   const createSession = (variables: CreateSessionVariables) => {
+    console.log('🚀 createSession called with:', variables);
+    console.log('🚀 current user:', user);
+    
     if (!user) {
+      console.error('❌ User not authenticated');
       toast.error('User not authenticated');
       return;
     }
     
     const sessionId = Math.random().toString(36).substring(2, 8);
+    console.log('🚀 Generated sessionId:', sessionId);
+    
     const newSession: Session = {
       id: sessionId,
       user_id: user.id,
@@ -39,7 +62,16 @@ export const useSessions = () => {
       current_flow_step: variables.flowId && variables.flowId !== 'manual' ? 0 : null,
     };
 
-    setSessions(prev => [newSession, ...prev]);
+    console.log('🚀 Created new session object:', newSession);
+    
+    setSessions(prev => {
+      console.log('🚀 Previous sessions:', prev);
+      const updated = [newSession, ...prev];
+      console.log('🚀 Updated sessions:', updated);
+      return updated;
+    });
+    
+    console.log('✅ Session creation completed');
     toast.success('Session created successfully!');
   };
 

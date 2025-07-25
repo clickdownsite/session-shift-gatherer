@@ -103,13 +103,28 @@ const CreateSessionForm = () => {
   }, [mainPages, safeSubPages, pageFlows, flowsLoading, flowsError]);
 
   const handleCreateSession = () => {
+    console.log('🎯 handleCreateSession called');
+    console.log('🎯 mainPageId:', mainPageId, 'subPageId:', subPageId);
+    
     if (!mainPageId || !subPageId) {
+      console.error('❌ Missing required fields');
       toast.error("Error", { description: "Please select both a page type and subpage" });
       return;
     }
+    
+    console.log('🎯 Setting creating to true');
     setCreating(true); // Instant loading feedback
 
     try {
+      console.log('🎯 Calling createSession with:', { 
+        mainPageId, 
+        subPageId, 
+        sessionOptions: { 
+          ...sessionOptions, 
+          ...(flowId && flowId !== "manual" ? { flowId } : {}) 
+        }
+      });
+      
       createSession({ 
         mainPageId, 
         subPageId, 
@@ -119,9 +134,13 @@ const CreateSessionForm = () => {
         }
       });
       
+      console.log('✅ createSession completed, showing success toast');
       toast.success("Session Created", { description: "New session has been created successfully." });
+      
+      console.log('🎯 Navigating to dashboard');
       navigate('/dashboard');
     } catch (err: any) {
+      console.error('❌ Error creating session:', err);
       toast.error("Error", { description: err.message || "Failed to create session" });
       setCreating(false);
     }
