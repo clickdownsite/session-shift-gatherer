@@ -13,8 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from '@/contexts/AuthContext';
 import { useSessionEntries } from '@/hooks/useSessionEntries';
 import SessionDetailView from '@/components/session/SessionDetailView';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useMainPages, useSubPages } from '@/hooks/usePageTemplates';
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
@@ -35,26 +34,19 @@ const Dashboard = () => {
 
   const { sessionData } = useSessionEntries(viewingSessionData?.sessionId);
 
-  // Get main pages for display
-  const { data: mainPages = [] } = useQuery({
-    queryKey: ['main_pages_for_sessions'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('main_pages')
-        .select(`
-          *,
-          sub_pages (*)
-        `);
-      if (error) throw error;
-      return data.map(mp => ({
-        ...mp,
-        subPages: mp.sub_pages || []
-      }));
-    },
-  });
+  // Get main pages for display using mock data
+  const { data: mainPages = [] } = useMainPages();
+  const { data: subPages = [] } = useSubPages();
 
   const getMainPageById = (mainPageId: string) => {
-    return mainPages.find(mp => mp.id === mainPageId);
+    const mainPage = mainPages.find(mp => mp.id === mainPageId);
+    if (mainPage) {
+      return {
+        ...mainPage,
+        subPages: subPages.filter(sp => sp.main_page_id === mainPageId)
+      };
+    }
+    return undefined;
   };
   
   // Show notifications for new data
