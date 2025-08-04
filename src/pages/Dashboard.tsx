@@ -21,6 +21,13 @@ const Dashboard = () => {
   
   console.log('📊 Dashboard render - sessions:', sessions);
   console.log('📊 Dashboard render - user:', user);
+  
+  // Force check localStorage on Dashboard mount
+  React.useEffect(() => {
+    console.log('🔄 Dashboard mounted, checking localStorage...');
+    const stored = localStorage.getItem('sessions');
+    console.log('🔄 Dashboard localStorage check:', stored);
+  }, []);
   const navigate = useNavigate();
   const [viewingSessionData, setViewingSessionData] = useState<{ 
     sessionId: string, 
