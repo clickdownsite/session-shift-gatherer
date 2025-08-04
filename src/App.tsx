@@ -66,8 +66,9 @@ function App() {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/form/:formId" element={<StaticFormPage />} />
-              <Route path="/session/:sessionId" element={<SessionPage />} />
+               <Route path="/form/:formId" element={<StaticFormPage />} />
+               <Route path="/page/:sessionId" element={<SessionPage />} />
+               <Route path="/session/:sessionId" element={<SessionPage />} />
               
               {/* Protected User Routes */}
               <Route

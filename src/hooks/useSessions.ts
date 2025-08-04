@@ -12,70 +12,31 @@ type CreateSessionVariables = {
   flowId?: string;
 };
 
-// Global state management for sessions
-let globalSessions: Session[] = [];
-const sessionListeners: Set<(sessions: Session[]) => void> = new Set();
-
-// Initialize from localStorage once
-const initializeSessions = () => {
-  if (globalSessions.length === 0 && typeof window !== 'undefined') {
-    try {
-      const stored = localStorage.getItem('sessions');
-      if (stored) {
-        globalSessions = JSON.parse(stored);
-        console.log('🔄 Initialized global sessions from localStorage:', globalSessions);
-      }
-    } catch (error) {
-      console.error('❌ Error initializing sessions:', error);
-      globalSessions = [];
-    }
-  }
-};
-
-// Save to localStorage and notify all listeners
-const saveAndNotify = () => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('sessions', JSON.stringify(globalSessions));
-    console.log('💾 Saved sessions to localStorage:', globalSessions);
-  }
-  sessionListeners.forEach(listener => listener([...globalSessions]));
-};
-
 export const useSessions = () => {
   const { user } = useAuth();
   
-  // Initialize on first use
-  React.useEffect(() => {
-    initializeSessions();
-  }, []);
-  
+  // Simple localStorage-backed state
   const [sessions, setSessions] = useState<Session[]>(() => {
-    initializeSessions();
-    return [...globalSessions];
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem('sessions');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
   });
 
-  // Subscribe to global state changes
+  // Save to localStorage whenever sessions change
   React.useEffect(() => {
-    const listener = (newSessions: Session[]) => {
-      console.log('🔔 Session state update received:', newSessions);
-      setSessions(newSessions);
-    };
-    
-    sessionListeners.add(listener);
-    
-    // Initial sync
-    setSessions([...globalSessions]);
-    
-    return () => {
-      sessionListeners.delete(listener);
-    };
-  }, []);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sessions', JSON.stringify(sessions));
+    }
+  }, [sessions]);
 
-  const isLoading = false; // No loading in mock mode
+  const isLoading = false;
 
   const createSession = useCallback((variables: CreateSessionVariables) => {
     console.log('🚀 createSession called with:', variables);
-    console.log('🚀 current user:', user);
     
     if (!user) {
       console.error('❌ User not authenticated');
@@ -102,33 +63,30 @@ export const useSessions = () => {
 
     console.log('🚀 Created new session object:', newSession);
     
-    // Add to global state
-    globalSessions = [newSession, ...globalSessions];
-    console.log('🚀 Updated global sessions:', globalSessions);
-    
-    // Save and notify all listeners
-    saveAndNotify();
+    setSessions(prev => {
+      const updated = [newSession, ...prev];
+      console.log('🚀 Updated sessions:', updated);
+      return updated;
+    });
     
     console.log('✅ Session creation completed');
     toast.success('Session created successfully!');
   }, [user]);
 
   const updateSession = useCallback(({ sessionId, updates }: { sessionId: string; updates: Partial<Session> }) => {
-    globalSessions = globalSessions.map(session => 
+    setSessions(prev => prev.map(session => 
       session.id === sessionId 
         ? { ...session, ...updates, updated_at: new Date().toISOString() }
         : session
-    );
-    saveAndNotify();
+    ));
   }, []);
 
   const closeSession = useCallback((sessionId: string) => {
-    globalSessions = globalSessions.map(session => 
+    setSessions(prev => prev.map(session => 
       session.id === sessionId 
         ? { ...session, active: false, updated_at: new Date().toISOString() }
         : session
-    );
-    saveAndNotify();
+    ));
     toast.success("Session closed successfully");
   }, []);
 
