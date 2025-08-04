@@ -20,8 +20,12 @@ export const useSessions = () => {
     if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem('sessions');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
+      console.log('🔍 Reading from localStorage on mount:', stored);
+      const parsed = stored ? JSON.parse(stored) : [];
+      console.log('🔍 Parsed sessions on mount:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('❌ Error reading from localStorage:', error);
       return [];
     }
   });
@@ -29,6 +33,7 @@ export const useSessions = () => {
   // Save to localStorage whenever sessions change
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
+      console.log('💾 Saving sessions to localStorage:', sessions);
       localStorage.setItem('sessions', JSON.stringify(sessions));
     }
   }, [sessions]);
