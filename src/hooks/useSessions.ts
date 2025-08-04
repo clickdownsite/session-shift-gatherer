@@ -36,16 +36,12 @@ export const useSessions = () => {
   const isLoading = false;
 
   const createSession = useCallback((variables: CreateSessionVariables) => {
-    console.log('🚀 createSession called with:', variables);
-    
     if (!user) {
-      console.error('❌ User not authenticated');
       toast.error('User not authenticated');
       return;
     }
     
     const sessionId = Math.random().toString(36).substring(2, 8);
-    console.log('🚀 Generated sessionId:', sessionId);
     
     const newSession: Session = {
       id: sessionId,
@@ -60,16 +56,8 @@ export const useSessions = () => {
       flow_id: variables.flowId && variables.flowId !== 'manual' ? variables.flowId : null,
       current_flow_step: variables.flowId && variables.flowId !== 'manual' ? 0 : null,
     };
-
-    console.log('🚀 Created new session object:', newSession);
     
-    setSessions(prev => {
-      const updated = [newSession, ...prev];
-      console.log('🚀 Updated sessions:', updated);
-      return updated;
-    });
-    
-    console.log('✅ Session creation completed');
+    setSessions(prev => [newSession, ...prev]);
     toast.success('Session created successfully!');
   }, [user]);
 
