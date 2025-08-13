@@ -58,7 +58,20 @@ export const useSessions = () => {
     };
     
     setSessions(prev => [newSession, ...prev]);
-    toast.success('Session created successfully!');
+    
+    // Generate the session landing page URL
+    const sessionUrl = `${window.location.origin}/${sessionId}`;
+    
+    toast.success(`Session created! Landing page: ${sessionUrl}`, {
+      duration: 5000,
+      action: {
+        label: 'Copy URL',
+        onClick: () => {
+          navigator.clipboard.writeText(sessionUrl);
+          toast.success('URL copied to clipboard!');
+        }
+      }
+    });
   }, [user]);
 
   const updateSession = useCallback(({ sessionId, updates }: { sessionId: string; updates: Partial<Session> }) => {

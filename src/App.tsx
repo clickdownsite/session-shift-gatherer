@@ -8,17 +8,15 @@ import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { Loader } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import AdminProtectedRoute from '@/components/AdminProtectedRoute';
 import Layout from '@/components/Layout';
-import AdminLayout from '@/components/AdminLayout';
 
 // Lazy load pages for better performance
-const Index = lazy(() => import('@/pages/Index'));
 const Auth = lazy(() => import('@/pages/Auth'));
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const CreateSession = lazy(() => import('@/pages/CreateSession'));
 const SessionPage = lazy(() => import('@/pages/SessionPage'));
+const SessionLandingPage = lazy(() => import('@/pages/SessionLandingPage'));
 const History = lazy(() => import('@/pages/History'));
 const Analytics = lazy(() => import('@/pages/Analytics'));
 const Settings = lazy(() => import('@/pages/Settings'));
@@ -28,16 +26,6 @@ const StaticForms = lazy(() => import('@/pages/StaticForms'));
 const StaticFormPage = lazy(() => import('@/pages/StaticFormPage'));
 const Flows = lazy(() => import('@/pages/Flows'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
-
-// Admin Pages
-const AdminLogin = lazy(() => import('@/pages/AdminLogin'));
-const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
-const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'));
-const AdminPages = lazy(() => import('@/pages/admin/AdminPages'));
-const AdminData = lazy(() => import('@/pages/admin/AdminData'));
-const AdminAnnouncements = lazy(() => import('@/pages/admin/AdminAnnouncements'));
-const AdminSubscriptions = lazy(() => import('@/pages/admin/AdminSubscriptions'));
-const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,13 +50,18 @@ function App() {
           <Router>
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Index />} />
+              {/* Public Routes - Session Landing Pages */}
               <Route path="/auth" element={<Auth />} />
               <Route path="/login" element={<LoginPage />} />
-               <Route path="/form/:formId" element={<StaticFormPage />} />
-               <Route path="/page/:sessionId" element={<SessionPage />} />
-               <Route path="/session/:sessionId" element={<SessionPage />} />
+              <Route path="/form/:formId" element={<StaticFormPage />} />
+              <Route path="/page/:sessionId" element={<SessionPage />} />
+              <Route path="/session/:sessionId" element={<SessionPage />} />
+              
+              {/* Default redirect to dashboard */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              
+              {/* Session Landing Pages - using wildcard to catch session IDs */}
+              <Route path="/:sessionId" element={<SessionLandingPage />} />
               
               {/* Protected User Routes */}
               <Route
@@ -159,79 +152,6 @@ function App() {
                       <Flows />
                     </Layout>
                   </ProtectedRoute>
-                }
-              />
-
-              {/* Admin Routes */}
-              <Route path="/admin-login" element={<AdminLogin />} />
-              <Route
-                path="/admin"
-                element={
-                  <AdminProtectedRoute>
-                    <AdminLayout>
-                      <AdminDashboard />
-                    </AdminLayout>
-                  </AdminProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/users"
-                element={
-                  <AdminProtectedRoute>
-                    <AdminLayout>
-                      <AdminUsers />
-                    </AdminLayout>
-                  </AdminProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/pages"
-                element={
-                  <AdminProtectedRoute>
-                    <AdminLayout>
-                      <AdminPages />
-                    </AdminLayout>
-                  </AdminProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/data"
-                element={
-                  <AdminProtectedRoute>
-                    <AdminLayout>
-                      <AdminData />
-                    </AdminLayout>
-                  </AdminProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/announcements"
-                element={
-                  <AdminProtectedRoute>
-                    <AdminLayout>
-                      <AdminAnnouncements />
-                    </AdminLayout>
-                  </AdminProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/subscriptions"
-                element={
-                  <AdminProtectedRoute>
-                    <AdminLayout>
-                      <AdminSubscriptions />
-                    </AdminLayout>
-                  </AdminProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/settings"
-                element={
-                  <AdminProtectedRoute>
-                    <AdminLayout>
-                      <AdminSettings />
-                    </AdminLayout>
-                  </AdminProtectedRoute>
                 }
               />
 

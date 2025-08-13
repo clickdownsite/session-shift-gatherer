@@ -28,7 +28,7 @@ import {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Create Session', href: '/create-session', icon: Plus },
-  { name: 'User Pages', href: '/user-pages', icon: FileText },
+  { name: 'Custom Pages', href: '/pages', icon: FileText },
   { name: 'Static Forms', href: '/static-forms', icon: FormInput },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'History', href: '/history', icon: History },
